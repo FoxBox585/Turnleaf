@@ -97,12 +97,13 @@ ul { list-style: none; }
 
 /* ------ borderless window (Tauri only) ------ */
 /* The desktop shell draws no title bar: the native traffic lights float over
-   the leather bar (positioned in tauri.conf.json, centred in the 52px bar),
-   and the whole bar is a drag region (data-tauri-drag-region="deep" in the
+   the leather bar (lowered onto it from Rust in src-tauri/src/lib.rs), and
+   the whole bar is a drag region (data-tauri-drag-region="deep" in the
    markup — buttons stay clickable, double-click zooms). The body gets the
-   .tauri class only inside the shell, so a browser preview is unchanged. */
+   .tauri class only inside the shell, so a browser preview is unchanged.
+   The stitched thread keeps running edge to edge: the buttons sit between
+   the two stitch lines, so nothing overlaps. */
 .tauri .leather-bar { padding-left: 84px; }      /* clear the lights (~x14–66) */
-.tauri .leather-bar::before { left: 78px; }      /* the stitched thread starts after them */
 
 /* ------ torn-off page scraps under the bar ------ */
 .torn-strip {

@@ -3597,8 +3597,10 @@ checksum = "e421abadd41a4225275504ea4d6566923418b7f05506fbc9c0fe86ba7396114b"
 
 [[package]]
 name = "turnleaf"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
+ "objc2-app-kit",
+ "objc2-foundation",
  "serde",
  "serde_json",
  "tauri",

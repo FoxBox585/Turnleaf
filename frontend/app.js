@@ -3,7 +3,7 @@
 
   /* ------------------------------ constants ---------------------------- */
   var KEY = 'bujoNotes.v1';
-  var VERSION = '1.0.0';        // shown in About; the notes format is state.version
+  var VERSION = '1.0.1';        // shown in About; the notes format is state.version
   var POM_PRESETS = [[25, 5], [30, 6], [50, 10], [10, 20]];
   // side-column sections the reader can switch off. Order is display order.
   var SECTIONS = [
