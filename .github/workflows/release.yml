@@ -1,0 +1,52 @@
+# Builds the macOS app on a version tag (v*) and attaches the bundles to a
+# GitHub Release. The builds are unsigned (personal use): macOS quarantines
+# downloaded apps, so right-click → Open the first time (see the release body).
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # standard public runners: each architecture builds natively
+          - runner: macos-26        # arm64 — Apple Silicon (M1 and newer)
+            target: aarch64-apple-darwin
+          - runner: macos-26-intel  # x64 — Intel Macs
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - name: Build and upload the release
+        uses: tauri-apps/tauri-action@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tagName: v__VERSION__
+          releaseName: 'Turnleaf v__VERSION__'
+          releaseBody: |
+            Turnleaf — a bullet journal desktop app, built from this repo.
+
+            **macOS note:** downloaded apps are quarantined. Right-click the app (or `.dmg`) and choose **Open**, or after installing run `xattr -cr /Applications/Turnleaf.app`.
+          releaseDraft: true
+          prerelease: false
+          args: '--target ${{ matrix.target }}'
