@@ -1,0 +1,49 @@
+{
+  "version": 4,
+  "birthdays": [
+    { "id": "sample-b1", "name": "Alex", "month": 8, "day": 8 },
+    { "id": "sample-b2", "name": "Sam", "month": 8, "day": 23 }
+  ],
+  "lessons": [
+    { "id": "sample-l1", "name": "Anna", "weekday": 1, "time": "16:00" },
+    { "id": "sample-l2", "name": "Marek", "weekday": 2, "time": "18:30" },
+    { "id": "sample-l3", "name": "Sofia", "weekday": 4, "time": "17:00" }
+  ],
+  "habits": [
+    { "id": "sample-h1", "name": "Morning run" },
+    { "id": "sample-h2", "name": "Read 10 pages" }
+  ],
+  "months": {
+    "2026-08": {
+      "goals": [
+        { "id": "sample-g1", "text": "Become fit before September" },
+        { "id": "sample-g2", "text": "Read two books" }
+      ],
+      "lessons": [
+        { "id": "sample-o1", "name": "Katya", "day": 19, "time": "12:00" }
+      ],
+      "habitChecks": {
+        "sample-h1": { "1": true, "3": true, "5": true, "7": true, "10": true, "12": true, "14": true },
+        "sample-h2": { "1": true, "2": true, "3": true, "4": true, "5": true, "8": true, "9": true, "10": true, "11": true, "12": true, "13": true }
+      },
+      "days": {
+        "10": [
+          { "id": "sample-t1", "text": "Morning run 5k", "done": true, "imp": false },
+          { "id": "sample-t2", "text": "Plan the week", "done": false, "imp": false }
+        ],
+        "17": [
+          { "id": "sample-t3", "text": "Call the school about the exam dates", "done": true, "imp": true },
+          { "id": "sample-t4", "text": "Print the worksheets", "done": true, "imp": false },
+          { "id": "sample-t5", "text": "Prep the diphthong lesson", "done": false, "imp": false },
+          { "id": "sample-t6", "text": "Book the studio for Saturday", "done": false, "imp": true }
+        ],
+        "22": [
+          { "id": "sample-t7", "text": "Send July invoices", "done": false, "imp": true }
+        ],
+        "27": [
+          { "id": "sample-t8", "text": "Renew the visa", "done": false, "imp": true }
+        ]
+      }
+    }
+  }
+}

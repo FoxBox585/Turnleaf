@@ -1,0 +1,15 @@
+{
+  "name": "turnleaf",
+  "version": "0.7.0",
+  "private": true,
+  "description": "Turnleaf — a skeuomorphic bullet journal (Tauri 2 desktop app). Dev-only npm project for unit tests; the app itself needs no npm.",
+  "scripts": {
+    "test": "vitest run",
+    "tauri": "tauri"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2.11.0",
+    "jsdom": "^26.1.0",
+    "vitest": "^3.2.4"
+  }
+}

@@ -1,0 +1,15 @@
+# personal journal backups — never publish
+starter-*.json
+notes-backup-*.json
+
+# icon working file (icon.png is the committed artifact)
+icon-source.jpeg
+
+# Rust build output for the Tauri shell
+src-tauri/target/
+
+# dev-only test dependencies (the app itself needs no npm)
+node_modules/
+
+# macOS finder droppings
+.DS_Store

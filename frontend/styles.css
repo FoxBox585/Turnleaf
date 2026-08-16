@@ -1,0 +1,807 @@
+/* ============================== 1. Tokens ============================== */
+:root {
+  --ink: #3b3226;
+  --ink-strong: rgba(59, 50, 38, .85);
+  --pencil: rgba(59, 50, 38, .42);
+  --flag: #a04a2c; /* red pen — important markers only */
+  --paper: #fbf3ac;
+  --paper-back: #f3ea9d;
+  --scrap-light: #efe397;
+  --scrap-dark: #dcd189;
+  --rule-color: rgba(70, 110, 150, .28);
+  --rule-soft: rgba(70, 110, 150, .12); /* ink bleeding into the fibre above the line */
+  /* THE baseline grid. Every row height, line-height and section gap in this
+     file is this or a multiple of it — put a 30px row anywhere and the text
+     starts wandering off the rules. Append #grid to the URL to see it. */
+  --rule: 28px;
+  --leather-hi: #8a5a2b;
+  --leather-mid: #6b421f;
+  --leather-lo: #59371a;
+  --thread: rgba(243, 226, 178, .55);
+  --font: "Marker Felt", "Segoe Print", "Comic Sans MS", cursive;
+  --bar-h: 52px;
+  /* grayscale fractal noise, tiled; soft for paper, strong for leather */
+  --noise-soft: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)' opacity='0.05'/%3E%3C/svg%3E");
+  --noise-strong: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+  /* turbulence stretched sideways reads as laid paper fibre rather than grain */
+  --noise-fibre: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='f'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.02 0.7' numOctaves='4' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23f)' opacity='0.06'/%3E%3C/svg%3E");
+}
+
+/* ============================== 2. Base ================================ */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  font-family: var(--font);
+  color: var(--ink);
+  background: #262019;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+button { font-family: inherit; }
+ul { list-style: none; }
+[hidden] { display: none !important; }
+
+/* ============================== 3. Shell =============================== */
+.app { position: relative; height: 100%; display: flex; flex-direction: column; }
+
+/* ------ leather bar ------ */
+.leather-bar {
+  position: relative; z-index: 30;
+  flex: 0 0 auto;
+  height: var(--bar-h);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 16px;
+  background-image: var(--noise-strong),
+    linear-gradient(180deg, var(--leather-hi) 0%, var(--leather-mid) 55%, var(--leather-lo) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, .25),
+    inset 0 -3px 6px rgba(0, 0, 0, .35),
+    0 3px 10px rgba(0, 0, 0, .45);
+}
+.leather-bar::before { /* stitched thread */
+  content: "";
+  position: absolute; left: 10px; right: 10px; top: 6px; bottom: 6px;
+  border-top: 2px dashed var(--thread);
+  border-bottom: 2px dashed var(--thread);
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, .45));
+  pointer-events: none;
+}
+.app-title {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  font-size: 23px; font-weight: normal; letter-spacing: .5px;
+  color: #f3e6be;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, .6);
+  user-select: none; -webkit-user-select: none;
+}
+.bar-btn { /* glossy pre-iOS-7 pill */
+  position: relative; z-index: 1;
+  font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 12px; font-weight: 600;
+  color: #fdf6dd;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, .5);
+  padding: 5px 13px;
+  border: 1px solid rgba(30, 18, 8, .7);
+  border-radius: 6px;
+  background-color: #7a4f26;
+  background-image: linear-gradient(rgba(255, 255, 255, .30), rgba(255, 255, 255, .10) 50%, rgba(0, 0, 0, .14) 50%, rgba(0, 0, 0, .04));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .35), 0 1px 1px rgba(0, 0, 0, .35);
+  cursor: pointer;
+}
+.bar-btn:active {
+  background-color: #66401d;
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, .45);
+}
+/* groups the bar's controls left and right, so space-between keeps them at the
+   edges and the absolutely-centred title stays centred between them */
+.bar-group { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; }
+
+/* ------ torn-off page scraps under the bar ------ */
+.torn-strip {
+  position: absolute; top: var(--bar-h); left: 0; right: 0; height: 14px;
+  z-index: 26; pointer-events: none;
+  background:
+    radial-gradient(circle at 8px 0, var(--scrap-light) 6.5px, rgba(0, 0, 0, 0) 7px) 0 0 / 17px 14px repeat-x,
+    radial-gradient(circle at 7px 0, var(--scrap-dark) 6px, rgba(0, 0, 0, 0) 6.5px) 6px 0 / 15px 13px repeat-x;
+  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, .28));
+}
+
+/* ------ the gutter by the spine ------ */
+/* A sibling of .book, not a child: the gutter is part of the binding, so it
+   must not rotate with a turning leaf — and this keeps every paint-affecting
+   property off .book, per the note below. */
+.spine-shade {
+  position: absolute; left: 0; top: var(--bar-h); bottom: 0;
+  width: 46px;
+  z-index: 25; /* under .torn-strip (26), so the scraps still overlap it */
+  pointer-events: none;
+  background: linear-gradient(to right,
+    rgba(0, 0, 0, .26), rgba(0, 0, 0, .09) 38%, rgba(0, 0, 0, 0));
+}
+
+/* ------ book: the 3D stage ------ */
+/* NOTE: .book must never get overflow/filter/clip-path — Safari flattens
+   the leaf's preserve-3d under those. Textures live on the pages. */
+.book {
+  position: relative;
+  flex: 1 1 auto;
+  perspective: 1700px;
+}
+
+/* ============================== 4. Paper =============================== */
+.page {
+  position: absolute; inset: 0;
+  overflow-y: auto; overflow-x: hidden;
+  background-color: var(--paper);
+  /* Only what belongs to the room lives on the scroller: light and shadow.
+     Everything that belongs to the sheet — grain, fibre, rules — is painted on
+     .sheet below, a scrolled child, so it is pixel-locked to the words. It used
+     to sit here with background-attachment: local, and that is repainted out of
+     step with composited scrolling — the rules trailed the text by a frame,
+     which read as the writing sliding loose from the paper. */
+  background-image:
+    radial-gradient(120% 80% at 18% 0%, rgba(255, 255, 255, .34), rgba(255, 255, 255, 0) 62%),
+    linear-gradient(to left, rgba(0, 0, 0, .075), rgba(0, 0, 0, 0) 46px),
+    linear-gradient(to bottom, rgba(0, 0, 0, .05), rgba(0, 0, 0, 0) 38px);
+}
+.sheet {
+  min-height: 100%;
+  background-image:
+    var(--noise-soft),
+    var(--noise-fibre),
+    /* two-tone rule: a pale pixel above the line reads as ink soaking in */
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--rule) - 2px),
+      var(--rule-soft) calc(var(--rule) - 2px) calc(var(--rule) - 1px),
+      var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+}
+.page-inner {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 28px 36px 112px;
+  /* a hair of bleed on every glyph — cheaper and safer than a filter, which
+     would flatten the leaf's preserve-3d if it ever landed on an ancestor */
+  text-shadow: 0 0 .35px currentColor, .3px .35px .6px rgba(59, 50, 38, .18);
+}
+
+/* #grid in the URL paints the baseline grid over the page. Pinned to the
+   viewport, so it tells the truth at the top of a page — which is where a new
+   row's alignment is worth checking. */
+.app.show-grid::after {
+  content: "";
+  position: absolute; inset: var(--bar-h) 0 0 0;
+  z-index: 90; pointer-events: none;
+  background: repeating-linear-gradient(to bottom,
+    rgba(255, 0, 128, .38) 0 1px, transparent 1px var(--rule));
+}
+
+/* ============================== 5. Month view ========================== */
+/* Two rules tall, with the words sitting on the second one. Marker Felt's ink
+   is about 1.07× its font-size, so anything bigger than 24px spills past a
+   28px band and the rules cut through it — the title and arrows are capped at
+   24px, and flex-end lands their ink inside the bottom band with air on both
+   rules. min-height, not height, so a title that wraps on a narrow screen
+   pushes the page down instead of spilling over it. */
+.month-head {
+  display: flex; align-items: flex-end; justify-content: center; gap: 14px;
+  flex-wrap: wrap;
+  min-height: 56px;
+}
+.month-title { font-size: 24px; line-height: 28px; font-weight: normal; }
+.nav-arrow {
+  position: relative;
+  width: 38px; height: 28px;
+  background: none; border: none;
+  font-family: inherit; font-size: 24px; line-height: 28px;
+  color: var(--ink); opacity: .45;
+  cursor: pointer; border-radius: 14px;
+  user-select: none; -webkit-user-select: none;
+}
+.nav-arrow::before { /* keeps a finger-sized target on a 28px row */
+  content: ""; position: absolute; inset: -8px 0;
+}
+.nav-arrow:hover { opacity: 1; background: rgba(59, 50, 38, .06); }
+.nav-arrow:active { transform: scale(.9); }
+
+.month-grid {
+  display: grid;
+  grid-template-columns: minmax(180px, 2fr) 3fr;
+  column-gap: 56px;
+  align-items: start;
+  margin-top: 28px;
+}
+/* grid items default to min-width:auto, so without this a long birthday name
+   widens the whole track and scrolls the spread sideways instead of ellipsizing */
+.dates-col, .side-col { min-width: 0; }
+.section-title {
+  font-size: 22px; line-height: 28px; font-weight: normal;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  /* at 5px the underline landed on the rule at 27-28px and read as the ruled
+     line overrunning the heading */
+  text-underline-offset: 3px;
+  text-underline-offset: 5px;
+  margin-bottom: 28px;
+}
+
+/* ------ dates column ------ */
+.date-row {
+  display: flex; align-items: baseline; gap: 12px;
+  height: 28px; line-height: 28px;
+  padding: 0 8px 0 4px; margin: 0 -8px 0 -4px;
+  border-radius: 4px;
+  cursor: pointer; position: relative;
+  user-select: none; -webkit-user-select: none;
+}
+.date-row:hover, .date-row:focus-visible { background: rgba(59, 50, 38, .07); outline: none; }
+.date-num {
+  position: relative;
+  min-width: 30px; text-align: right;
+  font-size: 19px; line-height: 28px;
+}
+.date-row.today .date-num::after { /* hand-drawn ink oval around today */
+  content: "";
+  position: absolute; left: 50%; top: 50%;
+  width: 36px; height: 23px; /* 27px touched both rules; 23 keeps the ink clear */
+  transform: translate(-46%, -50%) rotate(-3deg);
+  border: 2px solid rgba(59, 50, 38, .7);
+  border-radius: 52% 48% 55% 45% / 48% 55% 45% 52%;
+  pointer-events: none;
+}
+/* takes the free space and gives it back first: min-width:0 is what actually
+   lets a long name ellipsize instead of pushing the row off the page */
+.date-bday {
+  font-size: 15px; line-height: 28px; opacity: .7;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 1 1 auto; min-width: 0;
+}
+.date-imp { /* this date holds a flagged task */
+  flex: 0 0 auto;
+  font-size: 19px; line-height: 28px;
+  color: var(--flag);
+}
+.date-proj {
+  flex: 0 1 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 15px; line-height: 28px; color: var(--pencil);
+}
+.date-lesson { /* only gives ground once the birthday name has none left */
+  font-size: 14px; line-height: 28px; color: var(--pencil);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex: 0 1 auto; min-width: 0;
+}
+/* only .date-hint takes the free space, so the count stays pinned right */
+.date-hint { margin-left: auto; font-size: 14px; line-height: 28px; color: var(--pencil); }
+.date-hint.all-done { color: rgba(90, 130, 65, .85); font-size: 16px; }
+
+/* ------ shared list items (goals, birthdays, lessons, important) ------ */
+.item {
+  display: flex; align-items: baseline; gap: 10px;
+  min-height: 28px; line-height: 28px;
+  position: relative;
+}
+/* On a baseline grid a row has to be exactly one rule tall. Baseline alignment
+   across mixed font sizes grows the flex line to cover the union of boxes that
+   sit at different heights — half a pixel on a goal, a pixel and a half on an
+   Important row. Invisible once; five pixels of drift by the foot of the side
+   column, which is where the rules start cutting through the words. So the
+   controls and the small annotations anchor to the top of the row and settle
+   into the FIRST band with a size-specific translate instead of centring over
+   the whole row: centring is what put a control in the middle of a two-line
+   row, exactly on the rule between the lines. A transform, not a margin — a
+   margin would count in the flex line's cross size and grow the row off the
+   grid. */
+.del, .flag, .addsub,
+.imp-mark, .imp-day, .proj-count, .sub-count, .task-proj, .task-day {
+  align-self: flex-start;
+}
+.del, .flag, .addsub { transform: translateY(3px); }
+.imp-mark { transform: translateY(4px); }
+.imp-day, .proj-count, .sub-count, .task-proj, .task-day { transform: translateY(6px); }
+.bullet { flex: 0 0 auto; font-size: 19px; line-height: 28px; }
+.bullet.ghost-mark { color: var(--pencil); }
+.item-text {
+  flex: 1 1 auto;
+  font-size: 19px; line-height: 28px;
+  cursor: text; position: relative;
+  overflow-wrap: anywhere;
+}
+.del {
+  flex: 0 0 auto;
+  width: 28px; height: 28px;
+  background: none; border: none;
+  font-size: 21px; line-height: 28px;
+  color: var(--ink); opacity: 0;
+  cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.item:hover > .del, .task:hover > .del, .habit-row:hover .del, .del:focus-visible { opacity: .45; }
+.del:hover { opacity: 1; }
+
+.ghost-input, .edit-input, .num-input {
+  font-family: inherit; font-size: 19px;
+  color: var(--ink); caret-color: var(--ink);
+  background: transparent; border: none; outline: none;
+  height: 28px; line-height: 28px;
+  width: 100%; flex: 1 1 auto;
+  border-radius: 0;
+}
+.ghost-input::placeholder { color: var(--pencil); font-size: 17px; opacity: 1; }
+.add-row { display: flex; align-items: baseline; gap: 10px; min-height: 28px; }
+
+/* structured rows (birthdays, lessons) edit as several fields at once; each
+   sits where its words were, and each word opens the field under it */
+.item .edit-input + .edit-input { margin-left: 10px; }
+.edit-input.f-day  { flex: 0 0 56px; width: 56px; }
+.edit-input.f-when { flex: 0 0 72px; width: 72px; }
+.edit-input.f-time { flex: 0 0 96px; width: 96px; }
+.seg { cursor: text; }
+
+.bday-sec { margin-top: 56px; }
+.bday-add { display: flex; gap: 14px; }
+.bday-add .bday-day-input { flex: 0 0 64px; width: 64px; }
+
+/* ------ important (promoted from day pages; no add row of its own) ------ */
+.imp-sec { margin-top: 56px; }
+.imp-row {
+  cursor: pointer; border-radius: 4px;
+  padding: 0 6px; margin: 0 -6px;
+  user-select: none; -webkit-user-select: none;
+}
+.imp-row:hover, .imp-row:focus-visible { background: rgba(59, 50, 38, .07); outline: none; }
+.imp-mark { flex: 0 0 auto; font-size: 19px; line-height: 28px; color: var(--flag); }
+.imp-day { flex: 0 0 auto; font-size: 15px; line-height: 28px; color: var(--pencil); }
+/* shrink to the text so the strikethrough stops with it, as on the day page */
+.imp-row .item-text { flex: 0 1 auto; cursor: pointer; }
+.imp-row.done .item-text { opacity: .5; }
+.imp-row.done .item-text::after { /* same ink strikethrough as a done task */
+  content: "";
+  position: absolute; left: -2px; top: 15px;
+  height: 2px; width: 100%;
+  background: var(--ink-strong);
+  transform: rotate(-.5deg); transform-origin: left center;
+}
+
+/* ------ lessons: weekly recurring, then this month's one-offs ------ */
+.lesson-sec { margin-top: 56px; }
+.lesson-divider { height: 28px; display: flex; align-items: center; }
+.lesson-divider::before {
+  content: ""; flex: 1 1 auto;
+  border-top: 1px dashed rgba(59, 50, 38, .25);
+}
+.lesson-add { display: flex; gap: 10px; }
+.lesson-add .lesson-when-input { flex: 0 0 96px; width: 96px; }
+.lesson-add .lesson-time-input { flex: 0 0 96px; width: 96px; } /* fits "4:00 PM" */
+.lesson-hint { font-size: 13px; line-height: 28px; color: var(--pencil); }
+
+/* ------ projects: read-only index on the spread, editable on its own page --- */
+.proj-sec { margin-top: 56px; }
+.proj-row {
+  cursor: pointer; border-radius: 4px;
+  padding: 0 6px; margin: 0 -6px;
+  user-select: none; -webkit-user-select: none;
+}
+.proj-row:hover, .proj-row:focus-visible { background: rgba(59, 50, 38, .07); outline: none; }
+.proj-row .item-text { flex: 1 1 auto; cursor: pointer; }
+.proj-count {
+  flex: 0 0 auto;
+  font-size: 15px; line-height: 28px; color: var(--pencil);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ------ habits: the monthly tick table under the spread ------ */
+.habit-sec { margin-top: 56px; }
+.habit-table { overflow-x: auto; position: relative; } /* anchors the drag drop line */
+/* name column plus 31 equal day columns; a shorter month simply ends its row
+   early and the fixed template keeps every row's columns aligned */
+.habit-row {
+  display: grid;
+  grid-template-columns: minmax(96px, 1.4fr) repeat(31, 1fr);
+  align-items: center;
+  min-height: 28px;
+}
+/* the name cell stays put while a narrow screen scrolls the days under it.
+   It paints the same paper as .sheet — grain, fibre and the rule — not flat
+   colour: flat colour is what read as a blank patch cutting the ruled lines.
+   Each cell is exactly one 28px band tall, so its rule lands on the sheet's. */
+.habit-row > :first-child {
+  position: sticky; left: 0; z-index: 1;
+  background-color: var(--paper);
+  background-image:
+    var(--noise-soft),
+    var(--noise-fibre),
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--rule) - 2px),
+      var(--rule-soft) calc(var(--rule) - 2px) calc(var(--rule) - 1px),
+      var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+  padding-right: 10px;
+}
+.habit-name {
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0;
+  font-size: 17px; line-height: 28px;
+  overflow: hidden;
+}
+.habit-name .seg {
+  cursor: text;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.habit-name-input { font-size: 17px; }
+.habit-daynum {
+  position: relative;
+  justify-self: center;
+  font-size: 11px; line-height: 28px;
+  color: var(--pencil);
+  user-select: none; -webkit-user-select: none;
+}
+.habit-daynum.today { color: var(--ink); }
+.habit-daynum.today::after { /* the same hand-drawn oval as the Dates column */
+  content: "";
+  position: absolute; left: 50%; top: 50%;
+  width: 17px; height: 16px;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  border: 1.5px solid rgba(59, 50, 38, .7);
+  border-radius: 52% 48% 55% 45% / 48% 55% 45% 52%;
+  pointer-events: none;
+}
+/* the cell itself is the tap target: it fills its whole grid area (the full
+   28px band), so there is no enlarged pseudo sticking out of the last column
+   or row — an overhang there is what gave the habit-table a scrollbar. */
+.habit-cell {
+  justify-self: stretch; align-self: stretch;
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer;
+}
+.habit-dot {
+  position: relative;
+  display: block; width: 12px; height: 12px;
+  border: 1.5px solid var(--pencil);
+  border-radius: 54% 46% 52% 48% / 46% 54% 48% 52%;
+  transform: rotate(-3deg);
+  user-select: none; -webkit-user-select: none;
+}
+.habit-dot::before { /* enlarged hit target, like the checkbox */
+  content: ""; position: absolute; inset: -8px;
+}
+/* the day-page bubble keeps the enlarged pseudo; the table cell must not, or
+   it pokes past the table's edge and summons a scrollbar */
+.habit-cell .habit-dot::before { content: none; }
+.habit-cell:hover .habit-dot, .habit-cell:focus-visible .habit-dot,
+.habit-dot:hover, .habit-dot:focus-visible { border-color: var(--ink-strong); }
+.habit-dot.on { background: var(--ink); border-color: var(--ink); }
+.habit-add { display: flex; }
+/* on the day page each habit is a dot + name pair that stays on the one line.
+   vertical-align: top — a baseline-aligned inline-flex sits on its synthesized
+   baseline and grows the line box a pixel off the grid */
+.day-lesson .habit-bubble { display: inline-flex; align-items: center; gap: 7px; margin-right: 18px; vertical-align: top; }
+
+.foot-note {
+  margin-top: 56px;
+  font-size: 14px; line-height: 28px;
+  color: var(--pencil);
+}
+
+/* ============================== 6. Day view ============================ */
+/* same two-rule band as .month-head, and the same reason for the 24px cap
+   (see the note up there) */
+.day-head {
+  display: flex; align-items: flex-end; gap: 18px;
+  flex-wrap: wrap;
+  min-height: 56px;
+}
+.back-link {
+  background: none; border: none;
+  font-family: inherit; font-size: 18px; line-height: 28px;
+  color: var(--ink); opacity: .55; cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.back-link:hover { opacity: 1; }
+.day-title { font-size: 24px; line-height: 28px; font-weight: normal; }
+.day-bday, .day-lesson { font-size: 17px; line-height: 28px; opacity: .8; }
+
+.task-list { margin-top: 28px; position: relative; } /* anchor for the drag drop line */
+.task {
+  display: flex; align-items: flex-start; gap: 14px;
+  min-height: 28px;
+  position: relative;
+}
+.checkbox {
+  flex: 0 0 auto;
+  width: 19px; height: 19px;
+  margin-top: 4px;
+  border: 2px solid var(--ink-strong);
+  border-radius: 3px 6px 2px 5px; /* uneven = hand-drawn */
+  transform: rotate(-1.5deg);
+  position: relative;
+  cursor: pointer;
+  color: var(--ink);
+  user-select: none; -webkit-user-select: none;
+}
+.checkbox::before { /* enlarged hit target */
+  content: ""; position: absolute; inset: -7px;
+}
+.checkbox svg {
+  position: absolute; left: -3px; top: -9px;
+  width: 27px; height: 27px;
+  overflow: visible; pointer-events: none;
+}
+.checkbox svg polyline { stroke-dasharray: 30; stroke-dashoffset: 30; }
+/* scoped to the row's own checkbox (`>`), never a descendant row's — and .on
+   lets a checkbox outside a task, like the settings toggles, draw its tick */
+.task.done > .checkbox svg polyline,
+.checkbox.on svg polyline {
+  stroke-dashoffset: 0;
+  transition: stroke-dashoffset .3s ease .06s;
+}
+.checkbox.ghost { border-color: rgba(59, 50, 38, .3); cursor: default; }
+
+.task > .item-text { flex: 0 1 auto; transition: opacity .25s; padding-right: 6px; }
+.task > .flag { margin-left: auto; } /* flag + delete ride together at the right */
+.flag { /* promote this task to the month spread */
+  flex: 0 0 auto;
+  width: 22px; height: 28px;
+  background: none; border: none;
+  font-family: inherit; font-size: 21px; line-height: 28px;
+  color: var(--ink); opacity: 0;
+  cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.task:hover > .flag, .flag:focus-visible { opacity: .45; }
+.flag:hover { opacity: 1; }
+/* once flagged it stays lit, so the row reads as important without hovering */
+.task.imp > .flag, .task.imp:hover > .flag { opacity: 1; color: var(--flag); }
+.task > .item-text::after { /* ink strikethrough, draws in */
+  content: "";
+  position: absolute; left: -2px; top: 15px;
+  height: 2px; width: 0;
+  background: var(--ink-strong);
+  transform: rotate(-.5deg); transform-origin: left center;
+  transition: width .28s ease-out;
+}
+.task.done > .item-text { opacity: .5; }
+.task.done > .item-text::after { width: 100%; }
+/* matches the drag handle + checkbox offset of a task row, so the add input
+   lands under the task text */
+.task-add { display: flex; align-items: flex-start; gap: 14px; min-height: 28px; padding-left: 34px; }
+.task-add .ghost-input { margin-top: 0; }
+
+/* ------ subtasks: sibling rows, indented — never a nested list ------ */
+/* the indent is the drag handle (20px) + gap + checkbox (19px) + gap, so a
+   subtask's box lands exactly under the first letter of its parent */
+.sub { padding-left: 34px; }
+.sub > .checkbox { border-color: var(--pencil); }
+.sub > .del { margin-left: auto; }
+.sub-count {
+  flex: 0 0 auto;
+  font-size: 15px; line-height: 28px; color: var(--pencil);
+  padding-left: 8px;
+  font-variant-numeric: tabular-nums;
+}
+.addsub { /* rides with the flag and the delete at the right of the row */
+  flex: 0 0 auto;
+  width: 22px; height: 28px;
+  background: none; border: none;
+  font-family: inherit; font-size: 21px; line-height: 28px;
+  color: var(--ink); opacity: 0;
+  cursor: pointer;
+  user-select: none; -webkit-user-select: none;
+}
+.task:hover > .addsub, .addsub:focus-visible { opacity: .45; }
+.addsub:hover { opacity: 1; }
+
+/* ------ dragging a task ------ */
+/* the handle sits before the checkbox; only parent tasks have one, and their
+   subtasks travel with them as a block */
+.drag {
+  flex: 0 0 auto;
+  width: 20px; height: 28px;
+  padding: 0;
+  background: none; border: none;
+  font-family: inherit; font-size: 18px; line-height: 28px;
+  color: var(--ink); opacity: 0;
+  cursor: grab;
+  touch-action: none; /* pointer events own the gesture, not the scroller */
+  user-select: none; -webkit-user-select: none;
+}
+.task:hover > .drag, .habit-row:hover .drag, .drag:focus-visible { opacity: .4; }
+.drag:hover { opacity: .8; }
+.task.dragging, .habit-row.dragging { opacity: .55; }
+.task.dragging .drag, .habit-row.dragging .drag { opacity: 1; cursor: grabbing; }
+/* the habit table's sticky name cell (z-index: 1) must not cover the line */
+.habit-table .drop-line { z-index: 2; }
+/* the insertion bar drawn at the block boundary under the pointer */
+.drop-line {
+  position: absolute; left: 0; right: 0; height: 2px;
+  background: var(--ink-strong);
+  transform: rotate(-.2deg);
+  pointer-events: none;
+}
+body.drag-on, body.drag-on * { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+
+/* ============================== 7. Page flip =========================== */
+.leaf {
+  position: absolute; inset: 0; z-index: 10;
+  transform-style: preserve-3d;
+  -webkit-transform-style: preserve-3d;
+  transform-origin: left center;
+  transition: transform 620ms cubic-bezier(.4, .05, .22, 1);
+  pointer-events: none;
+  will-change: transform;
+}
+.leaf-face {
+  position: absolute; inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  background-color: var(--paper);
+  box-shadow: 0 0 22px rgba(0, 0, 0, .22);
+}
+/* The front face holds a clone of a whole .page, which brings its own ruled
+   paper scrolled to wherever the reader was. Ruling this face as well put two
+   sets of lines on screen a fraction of a rule out of phase, and one of them
+   cut straight through the text for the length of the turn. */
+.leaf-back {
+  transform: rotateY(180deg);
+  background-color: var(--paper-back);
+  background-image:
+    var(--noise-fibre),
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--rule) - 1px),
+      var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+}
+.leaf-face::after { /* moving curl shadow near the spine */
+  content: "";
+  position: absolute; inset: 0;
+  background: linear-gradient(to right, rgba(0, 0, 0, .24), rgba(0, 0, 0, 0) 32%);
+  opacity: 0;
+  transition: opacity 620ms ease;
+  pointer-events: none;
+}
+.leaf.turning .leaf-face::after { opacity: 1; }
+
+/* ============================== 8. Settings ============================ */
+.set-sec { margin-top: 56px; }
+.set-row {
+  display: flex; align-items: flex-start; gap: 14px;
+  min-height: 28px;
+}
+.set-row .checkbox { cursor: pointer; }
+.set-label { font-size: 19px; line-height: 28px; cursor: pointer; }
+/* a written-in number: dotted rule under it so it reads as fill-in-the-blank */
+.num-input {
+  flex: 0 0 44px; width: 44px; text-align: center;
+  border-bottom: 1px dashed var(--pencil);
+}
+.num-input:focus { border-bottom-color: var(--ink); }
+.set-hint { font-size: 14px; line-height: 28px; color: var(--pencil); }
+
+/* chips: same uneven hand-drawn radius as .checkbox. A pill can't be a full
+   28px tall — its borders would sit exactly on the rules above and below —
+   so it is 22px and centres in the 28px band with ~3px of air. The earlier
+   14px top/bottom margins floated the pills but pushed everything after them
+   half a rule off the grid; the row itself must stay exactly one rule. */
+.chip-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; min-height: 28px; }
+.chip {
+  font-family: inherit; font-size: 16px; line-height: 18px;
+  height: 22px; padding: 0 12px;
+  color: var(--ink); background: none;
+  border: 2px solid var(--pencil);
+  border-radius: 13px 11px 14px 12px;
+  cursor: pointer;
+}
+.chip:hover { border-color: var(--ink-strong); }
+.chip.on { border-color: var(--ink); background: rgba(59, 50, 38, .07); }
+
+.about-line { font-size: 17px; line-height: 28px; }
+.about-line.dim { font-size: 14px; color: var(--pencil); }
+.about-line.warn { font-size: 14px; color: var(--flag); }
+/* like .chip-row: one rule tall with no vertical margins, so the rows after
+   the buttons stay on the grid */
+.about-btns { display: flex; gap: 12px; align-items: center; min-height: 28px; }
+
+/* a button that sits on the paper is drawn in ink, not moulded in leather —
+   the glossy bar pills belong on the leather bar and nowhere else. 22px tall
+   so its border clears the rules, like a chip. */
+.ink-btn {
+  font-family: inherit; font-size: 17px; line-height: 18px;
+  height: 22px; padding: 0 16px;
+  color: var(--ink);
+  background: rgba(59, 50, 38, .05);
+  border: 2px solid var(--ink-strong);
+  border-radius: 8px 12px 9px 13px / 11px 8px 12px 9px; /* uneven = hand-drawn */
+  cursor: pointer;
+}
+.ink-btn:hover { background: rgba(59, 50, 38, .1); }
+.ink-btn:active { transform: rotate(-.6deg); }
+
+/* ============================== 9. Projects page ======================= */
+.proj { margin-top: 56px; }
+.proj-head { display: flex; align-items: baseline; gap: 10px; min-height: 28px; }
+.proj-name { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.proj-name-input { font-size: 22px; }
+.proj-head:hover > .del, .del:focus-visible { opacity: .45; }
+.proj-add { margin-top: 56px; display: flex; }
+
+/* a task borrowed by a day page says where it came from; a task on its own
+   page says when it is due. Both sit between the text and the right-hand pair. */
+.task-proj, .task-day {
+  font-size: 15px; line-height: 28px; color: var(--pencil);
+  padding-left: 8px;
+  white-space: nowrap;
+}
+/* shrinks eight times as readily as the task text, so a long project name
+   ellipsises away instead of squeezing the words down to one letter a line */
+.task-proj {
+  flex: 0 8 auto; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis;
+}
+.task-day { flex: 0 0 auto; cursor: text; }
+.task-day.ghost-mark { opacity: 0; }
+.task:hover > .task-day.ghost-mark, .task-day.ghost-mark:focus-visible { opacity: 1; }
+
+/* ============================== 10. Pomodoro =========================== */
+.pom-btn { min-width: 34px; padding: 5px 9px; }
+.pom-time, .pom-mode {
+  font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  color: #f3e6be;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, .6);
+  user-select: none; -webkit-user-select: none;
+}
+.pom-time {
+  font-size: 14px; font-weight: 600;
+  /* tabular figures + a fixed box, so the bar never twitches as digits change */
+  font-variant-numeric: tabular-nums;
+  min-width: 50px; text-align: center;
+}
+.pom-mode {
+  font-size: 11px; letter-spacing: .8px; text-transform: uppercase;
+  opacity: .6; min-width: 38px;
+}
+.pom.rest .pom-time { color: #cfe8b8; }
+@keyframes pom-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .2; } }
+.pom.ringing .pom-time { animation: pom-pulse .5s ease 3; }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px;
+  margin: -1px; padding: 0; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+
+/* ============================== 11. Banner ============================ */
+.banner {
+  position: fixed; left: 50%; bottom: 22px; transform: translateX(-50%);
+  z-index: 100;
+  display: flex; align-items: center; gap: 12px;
+  max-width: min(90vw, 560px);
+  padding: 10px 14px;
+  background: #3a2f1e; color: #f7ecc8;
+  font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;
+  font-size: 13px; line-height: 1.4;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, .45);
+}
+.banner-close {
+  background: none; border: none;
+  color: inherit; font-size: 17px; line-height: 1;
+  cursor: pointer; opacity: .7;
+}
+.banner-close:hover { opacity: 1; }
+
+/* ============================== 12. Small screens ===================== */
+@media (max-width: 640px) {
+  .page-inner { padding: 28px 22px 112px; }
+  .month-grid { grid-template-columns: 1fr; column-gap: 0; }
+  .side-col { margin-bottom: 28px; }
+  .pom-mode { display: none; } /* the colour still says which stretch it is */
+  /* an ellipsised project name is no name at all — at this width the spread's
+     own Projects marks are where you look for provenance */
+  .task-proj { display: none; }
+}
+
+/* ============================== 13. Reduced motion ==================== */
+@media (prefers-reduced-motion: reduce) {
+  .leaf { transition: none; }
+  .pom.ringing .pom-time { animation: none; }
+  .task > .item-text::after,
+  .task.done > .checkbox svg polyline,
+  .checkbox.on svg polyline,
+  .task > .item-text { transition: none; }
+}
