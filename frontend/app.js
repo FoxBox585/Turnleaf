@@ -2063,8 +2063,8 @@
     about.append(el('p', { class: 'about-line dim', text: 'Your notes live in this browser and nowhere else. Importing replaces everything, so it downloads a safety copy first.' }));
     about.append(el('p', { class: 'about-line dim', text: 'Backups written by this version will not open in older builds of Turnleaf.' }));
 
-    /* wiping one shelf at a time — every wipe confirms, safety-exports, and
-       leaves the rest of the book untouched */
+    /* wiping one shelf at a time, inside About with the backups — every wipe
+       confirms, safety-exports, and leaves the rest of the book untouched */
     var counts = wipeCounts(state);
     var wipeKinds = [
       ['tasks', 'Day tasks', counts.tasks],
@@ -2088,7 +2088,7 @@
       el('button', { class: 'ink-btn wipe-btn wipe-everything', type: 'button', 'data-action': 'wipe-all', text: 'Wipe all' })
     ));
     wipeSec.append(el('p', { class: 'set-hint', text: 'Wiping is permanent — each wipe downloads a safety backup first, and only that shelf is cleared.' }));
-    inner.append(wipeSec);
+    about.append(wipeSec);
 
     if (!storageOk || saveFailed) {
       about.append(el('p', { class: 'about-line warn', text: 'Storage is unavailable right now — export often.' }));
