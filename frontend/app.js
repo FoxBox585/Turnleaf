@@ -3,7 +3,7 @@
 
   /* ------------------------------ constants ---------------------------- */
   var KEY = 'bujoNotes.v1';
-  var VERSION = '1.0.1';        // shown in About; the notes format is state.version
+  var VERSION = '1.0.2';        // shown in About; the notes format is state.version
   var POM_PRESETS = [[25, 5], [30, 6], [50, 10], [10, 20]];
   // side-column sections the reader can switch off. Order is display order.
   var SECTIONS = [
@@ -786,18 +786,19 @@
   function deleteHabit(id) {
     var h = state.habits.find(function (x) { return x.id === id; });
     if (!h) return;
-    if (!confirm('Delete "' + h.name + '" and its tick history?')) return;
-    state.habits = state.habits.filter(function (x) { return x.id !== id; });
-    Object.keys(state.months).forEach(function (k) {
-      var mo = state.months[k];
-      if (mo.habitChecks) {
-        delete mo.habitChecks[id];
-        if (!Object.keys(mo.habitChecks).length) delete mo.habitChecks;
-      }
-      prune(+k.slice(0, 4), +k.slice(5));
+    askDialog('Delete "' + h.name + '" and its tick history?', function () {
+      state.habits = state.habits.filter(function (x) { return x.id !== id; });
+      Object.keys(state.months).forEach(function (k) {
+        var mo = state.months[k];
+        if (mo.habitChecks) {
+          delete mo.habitChecks[id];
+          if (!Object.keys(mo.habitChecks).length) delete mo.habitChecks;
+        }
+        prune(+k.slice(0, 4), +k.slice(5));
+      });
+      save();
+      renderMonth();
     });
-    save();
-    renderMonth();
   }
 
   function commitAddProjectTask(pid, text) {
@@ -827,10 +828,16 @@
     var proj = getProject(id);
     if (!proj) return;
     var n = proj.tasks.length;
-    if (n && !confirm('Delete "' + proj.name + '" and its ' + n + (n === 1 ? ' task' : ' tasks') + '?')) return;
-    state.projects = state.projects.filter(function (p) { return p.id !== id; });
-    save();
-    renderProjects();
+    var go = function () {
+      state.projects = state.projects.filter(function (p) { return p.id !== id; });
+      save();
+      renderProjects();
+    };
+    if (n) {
+      askDialog('Delete "' + proj.name + '" and its ' + n + (n === 1 ? ' task' : ' tasks') + '?', go);
+    } else {
+      go();
+    }
   }
 
   function commitAddBirthday() {
@@ -1077,19 +1084,20 @@
     var msg = kind === 'all'
       ? 'Wipe EVERYTHING — all notes, and settings back to defaults?'
       : 'Wipe all ' + counts[kind] + ' ' + labels[kind] + '?\n\nThis is permanent.';
-    if (!confirm(msg)) return;
-    exportData(); // safety copy first, exactly like Import
-    editing = null;
-    if (kind === 'all') state = wipeAll();
-    else if (kind === 'tasks') wipeTasks(state);
-    else if (kind === 'goals') wipeGoals(state);
-    else if (kind === 'projects') wipeProjects(state);
-    else if (kind === 'lessons') wipeLessons(state);
-    else if (kind === 'birthdays') wipeBirthdays(state);
-    else if (kind === 'habits') wipeHabits(state);
-    save();
-    paintBar(); // "everything" may have switched sections back on
-    render();
+    askDialog(msg, function () {
+      exportData(); // safety copy first, exactly like Import
+      editing = null;
+      if (kind === 'all') state = wipeAll();
+      else if (kind === 'tasks') wipeTasks(state);
+      else if (kind === 'goals') wipeGoals(state);
+      else if (kind === 'projects') wipeProjects(state);
+      else if (kind === 'lessons') wipeLessons(state);
+      else if (kind === 'birthdays') wipeBirthdays(state);
+      else if (kind === 'habits') wipeHabits(state);
+      save();
+      paintBar(); // "everything" may have switched sections back on
+      render();
+    });
   }
 
   /* ------------------------------ drag & drop -------------------------- */
@@ -1343,10 +1351,13 @@
       if (hi > -1) {
         if (text) state.habits[hi].name = text;
         // a habit's ticks die with it, so emptying the name asks first instead
-        // of silently deleting (the × asks too) — declining keeps the old name
-        else if (confirm('Delete "' + state.habits[hi].name + '" and its tick history?')) {
-          deleteHabit(id);
-          return; // deleteHabit saves and re-renders already
+        // of silently deleting (the × asks too) — the dialog owns the outcome:
+        // OK deletes (deleteHabit saves and re-renders), Cancel restores the row
+        else {
+          askDialog('Delete "' + state.habits[hi].name + '" and its tick history?',
+            function () { deleteHabit(id); },
+            function () { render(); });
+          return;
         }
       }
     } else if (type === 'bday') {
@@ -2352,25 +2363,26 @@
       try {
         data = JSON.parse(raw);
       } catch (e) {
-        alert("That file isn't valid JSON.");
+        showAlert("That file isn't valid JSON.");
         return;
       }
       var clean = sanitize(data);
       if (!clean) {
-        alert("That file doesn't look like a Notes backup (wrong shape or version).");
+        showAlert("That file doesn't look like a Notes backup (wrong shape or version).");
         return;
       }
-      if (!confirm('Replace all current notes with this backup?\n\nYour current notes will first download as a safety backup.')) return;
-      exportData(); // safety net before replacing
-      state = clean;
-      editing = null;
-      save();
-      view.day = null;
-      paintBar();    // the backup carries its own clock and section settings
-      renderMonth();
-      showPageNow('month');
+      askDialog('Replace all current notes with this backup?\n\nYour current notes will first download as a safety backup.', function () {
+        exportData(); // safety net before replacing
+        state = clean;
+        editing = null;
+        save();
+        view.day = null;
+        paintBar();    // the backup carries its own clock and section settings
+        renderMonth();
+        showPageNow('month');
+      });
     }).catch(function () {
-      alert("Couldn't read that file.");
+      showAlert("Couldn't read that file.");
     });
   });
 
@@ -2504,6 +2516,60 @@
     state.settings.pomodoro.chime = !state.settings.pomodoro.chime;
     save();
     renderSettings();
+  }
+
+  /* ------------------------------ dialogs ------------------------------- */
+  /* The Tauri shell cannot show the browser's alert()/confirm(): wry's
+     WKUIDelegate handles only file panels and permissions, so a bare
+     confirm() silently returns false and every guarded action (wipes,
+     deletes, Import) quietly refuses. Everything destructive goes through
+     this paper modal instead — in the app and in the browser alike. */
+
+  function showAlert(text) {
+    var veil = el('div', { class: 'dialog-veil' });
+    var card = el('div', { class: 'dialog-card', role: 'alertdialog', 'aria-label': text },
+      el('p', { class: 'dialog-text', text: text }),
+      el('div', { class: 'dialog-btns' },
+        el('button', { class: 'ink-btn dialog-ok', type: 'button', text: 'OK' })
+      )
+    );
+    veil.append(card);
+    document.body.append(veil);
+    card.addEventListener('keydown', function (e) { e.stopPropagation(); });
+    card.querySelector('.dialog-ok').addEventListener('click', function () { veil.remove(); });
+    card.querySelector('.dialog-ok').focus();
+  }
+
+  // onOk / onCancel are the two outcomes; Escape or a click on the veil is a
+  // cancel. The modal swallows its own key events so the book never turns a
+  // page or flips a month underneath it.
+  function askDialog(text, onOk, onCancel) {
+    var veil = el('div', { class: 'dialog-veil' });
+    var card = el('div', { class: 'dialog-card', role: 'alertdialog', 'aria-label': text },
+      el('p', { class: 'dialog-text', text: text }),
+      el('div', { class: 'dialog-btns' },
+        el('button', { class: 'ink-btn dialog-ok', type: 'button', text: 'OK' }),
+        el('button', { class: 'ink-btn dialog-cancel', type: 'button', text: 'Cancel' })
+      )
+    );
+    veil.append(card);
+    document.body.append(veil);
+    var done = false;
+    function close(ok) {
+      if (done) return;
+      done = true;
+      veil.remove();
+      if (ok) { if (onOk) onOk(); }
+      else if (onCancel) onCancel();
+    }
+    card.querySelector('.dialog-ok').addEventListener('click', function () { close(true); });
+    card.querySelector('.dialog-cancel').addEventListener('click', function () { close(false); });
+    veil.addEventListener('click', function (e) { if (e.target === veil) close(false); });
+    card.addEventListener('keydown', function (e) {
+      e.stopPropagation();
+      if (e.key === 'Escape') close(false);
+    });
+    card.querySelector('.dialog-ok').focus();
   }
 
   /* ------------------------------ banner -------------------------------- */

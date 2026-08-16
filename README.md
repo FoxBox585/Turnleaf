@@ -28,11 +28,11 @@ Paper journals pile up friction; big productivity apps are rabbit holes. Turnlea
 Files fetched with `curl` don't get the browser's quarantine flag, so Gatekeeper never bothers you:
 
 ```bash
-curl -LO https://github.com/FoxBox585/Turnleaf/releases/download/v1.0.1/Turnleaf_1.0.1_aarch64.dmg
-open Turnleaf_1.0.1_aarch64.dmg
+curl -LO https://github.com/FoxBox585/Turnleaf/releases/download/v1.0.2/Turnleaf_1.0.2_aarch64.dmg
+open Turnleaf_1.0.2_aarch64.dmg
 ```
 
-Use `Turnleaf_1.0.1_x64.dmg` on an Intel Mac. Drag Turnleaf into `/Applications` and it just opens.
+Use `Turnleaf_1.0.2_x64.dmg` on an Intel Mac. Drag Turnleaf into `/Applications` and it just opens.
 
 **Build the desktop app yourself**
 
@@ -152,7 +152,7 @@ Every row edits in place — click the part you want to change. On a birthday or
 - **Frontend** — `frontend/index.html` + `styles.css` + `app.js`: the whole app in plain vanilla JS, no framework, nothing fetched, ever
 - **Shell** — `src-tauri/`: a minimal Tauri 2 project (no plugins, no custom commands) wrapping the frontend in a native macOS window; the icon set is generated from `icon.png` via `cargo tauri icon`
 - **Tests** — `npm test` (dev-only: Vitest + jsdom) exercises the pure logic — the reorder engine, parsers, and backup sanitizer — by booting the real app script in a fake DOM; GitHub Actions runs it on every push
-- **Releases** — pushing a `v*` tag (e.g. `git tag v1.0.1 && git push origin v1.0.1`) makes GitHub Actions build unsigned `.app`/`.dmg` bundles for both Mac architectures and attach them to a draft GitHub Release, ready to publish
+- **Releases** — pushing a `v*` tag (e.g. `git tag v1.0.2 && git push origin v1.0.2`) makes GitHub Actions build unsigned `.app`/`.dmg` bundles for both Mac architectures and attach them to a draft GitHub Release, ready to publish
 
 ## 📝 Notes
 

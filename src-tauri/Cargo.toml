@@ -1,6 +1,6 @@
 [package]
 name = "turnleaf"
-version = "1.0.1"
+version = "1.0.2"
 description = "Turnleaf — a skeuomorphic bullet journal"
 edition = "2021"
 

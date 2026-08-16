@@ -853,7 +853,38 @@ body.drag-on, body.drag-on * { user-select: none; -webkit-user-select: none; cur
 }
 .banner-close:hover { opacity: 1; }
 
-/* ============================== 12. Small screens ===================== */
+/* ============================== 12. Dialog ============================ */
+/* The in-app replacement for alert()/confirm(): the Tauri shell cannot show
+   the browser's native dialogs (wry's UIDelegate never handles them), so
+   every destructive action asks on a paper card instead. */
+.dialog-veil {
+  position: fixed; inset: 0; z-index: 120;
+  display: flex; align-items: center; justify-content: center;
+  padding: 24px;
+  background: rgba(22, 16, 9, .48);
+}
+.dialog-card {
+  width: 100%; max-width: 430px;
+  background-color: var(--paper);
+  background-image:
+    var(--noise-soft),
+    var(--noise-fibre),
+    repeating-linear-gradient(to bottom,
+      transparent 0 calc(var(--rule) - 2px),
+      var(--rule-soft) calc(var(--rule) - 2px) calc(var(--rule) - 1px),
+      var(--rule-color) calc(var(--rule) - 1px) var(--rule));
+  border-radius: 10px 14px 11px 15px / 13px 10px 14px 11px; /* uneven = hand-drawn */
+  box-shadow: 0 12px 42px rgba(0, 0, 0, .5), 0 0 0 1px rgba(59, 50, 38, .12);
+  padding: 26px 28px 22px;
+}
+.dialog-text {
+  font-size: 17px; line-height: 28px;
+  white-space: pre-line; /* keeps the two-line warnings as written */
+  margin-bottom: 22px;
+}
+.dialog-btns { display: flex; justify-content: flex-end; gap: 12px; }
+
+/* ============================== 13. Small screens ===================== */
 @media (max-width: 640px) {
   .page-inner { padding: 28px 22px 112px; }
   .month-grid { grid-template-columns: 1fr; column-gap: 0; }
@@ -864,7 +895,7 @@ body.drag-on, body.drag-on * { user-select: none; -webkit-user-select: none; cur
   .task-proj { display: none; }
 }
 
-/* ============================== 13. Reduced motion ==================== */
+/* ============================== 14. Reduced motion ==================== */
 @media (prefers-reduced-motion: reduce) {
   .leaf { transition: none; }
   .pom.ringing .pom-time { animation: none; }
