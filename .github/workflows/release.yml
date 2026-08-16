@@ -46,7 +46,14 @@ jobs:
           releaseBody: |
             Turnleaf — a bullet journal desktop app, built from this repo.
 
-            **macOS note:** downloaded apps are quarantined. Right-click the app (or `.dmg`) and choose **Open**, or after installing run `xattr -cr /Applications/Turnleaf.app`.
+            **macOS note:** the builds are ad-hoc signed (personal use, no paid Apple developer certificate), so macOS blocks the first open. Let it through once in **System Settings → Privacy & Security → Open Anyway**, or install with zero prompts from the Terminal (curl downloads skip the quarantine flag):
+
+            ```
+            curl -LO https://github.com/FoxBox585/Turnleaf/releases/download/v__VERSION__/Turnleaf_v__VERSION___aarch64.dmg
+            open Turnleaf_v__VERSION___aarch64.dmg
+            ```
+
+            Use `_x64` on an Intel Mac.
           releaseDraft: true
           prerelease: false
           args: '--target ${{ matrix.target }}'

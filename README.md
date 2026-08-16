@@ -19,7 +19,20 @@ Paper journals pile up friction; big productivity apps are rabbit holes. Turnlea
 **Download a release** (no building)
 
 1. Grab the `.dmg` (or `.app`) for your Mac from [Releases](../../releases) — `aarch64` for Apple Silicon, `x64` for Intel
-2. First open: right-click → **Open** (macOS quarantines downloads), or `xattr -cr /Applications/Turnleaf.app` after installing
+2. The builds are ad-hoc signed (personal use — no paid Apple developer certificate), so macOS blocks the first open. Let it through once, either way:
+   - **System Settings → Privacy & Security** → scroll down → **Open Anyway** (right-click → Open no longer exists on modern macOS), or
+   - drag the app to `/Applications`, then run `xattr -cr /Applications/Turnleaf.app` in the Terminal
+
+**Download with zero prompts** (Terminal)
+
+Files fetched with `curl` don't get the browser's quarantine flag, so Gatekeeper never bothers you:
+
+```bash
+curl -LO https://github.com/FoxBox585/Turnleaf/releases/download/v0.7.0/Turnleaf_0.7.0_aarch64.dmg
+open Turnleaf_0.7.0_aarch64.dmg
+```
+
+Use `Turnleaf_0.7.0_x64.dmg` on an Intel Mac. Drag Turnleaf into `/Applications` and it just opens.
 
 **Build the desktop app yourself**
 
