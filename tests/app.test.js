@@ -196,14 +196,15 @@ describe('sanitize', function () {
   it('rejects unusable input', function () {
     expect(api.sanitize(null)).toBeNull();
     expect(api.sanitize({})).toBeNull();
-    expect(api.sanitize({ version: 5 })).toBeNull();
+    expect(api.sanitize({ version: 6 })).toBeNull();
   });
   it('lifts legacy data to the current shape with all sections on', function () {
     const out = api.sanitize({ version: 1, birthdays: [] });
-    expect(out.version).toBe(4);
+    expect(out.version).toBe(5);
     expect(out.settings.sections.habits).toBe(true);
     expect(out.projects).toEqual([]);
     expect(out.months).toEqual({});
+    expect(out.plans).toEqual({});
   });
   it('keeps valid habits, their order, and their ids', function () {
     const out = api.sanitize({
@@ -235,5 +236,162 @@ describe('sanitize', function () {
     expect(out.settings.pomodoro.work).toBe(25); // out of range → default
     expect(out.settings.pomodoro.rest).toBe(5);
     expect(out.settings.pomodoro.chime).toBe(false);
+  });
+
+  it('keeps valid v5 lesson plans and drops orphans, bad dates and blanks', function () {
+    const out = api.sanitize({
+      version: 5,
+      lessons: [{ id: 'l1', name: 'Anna', weekday: 1, time: '16:00' }],
+      plans: {
+        l1: {
+          '2026-08-24': {
+            tasks: [
+              { id: 't1', text: 'Warm-up', done: false, subs: [{ id: 's1', text: 'Greetings', done: true }] },
+              { id: 't2', text: '', done: false } // blank dropped
+            ],
+            notes: 'Bring the cards.'
+          },
+          '2026-02-30': { tasks: [{ id: 'x', text: 'bad date', done: false }] }, // dropped
+          '2026-08-31': { tasks: [], notes: '' }                                // empty, dropped
+        },
+        ghost: { '2026-08-24': { tasks: [{ id: 'y', text: 'orphan', done: false }] } } // dropped
+      }
+    });
+    const plan = out.plans.l1['2026-08-24'];
+    expect(plan.notes).toBe('Bring the cards.');
+    expect(plan.tasks).toHaveLength(1);
+    expect(plan.tasks[0].text).toBe('Warm-up');
+    expect(plan.tasks[0].subs).toEqual([{ id: 's1', text: 'Greetings', done: true }]);
+    expect(out.plans.l1['2026-02-30']).toBeUndefined();
+    expect(out.plans.l1['2026-08-31']).toBeUndefined();
+    expect(out.plans.ghost).toBeUndefined();
+  });
+});
+
+describe('dateWeekday', function () {
+  it('names the weekday of any date', function () {
+    expect(api.dateWeekday(2026, 8, 24)).toBe('Mon');
+    expect(api.dateWeekday(2026, 8, 31)).toBe('Mon');
+    expect(api.dateWeekday(2026, 9, 1)).toBe('Tue');
+    expect(api.dateWeekday(2026, 1, 1)).toBe('Thu');
+    expect(api.dateWeekday(2026, 2, 14)).toBe('Sat');
+    expect(api.dateWeekday(2026, 8, 1)).toBe('Sat');
+  });
+});
+
+describe('planPrune', function () {
+  it('removes an empty plan and its empty lesson key', function () {
+    const st = api.sanitize({ version: 5, lessons: [{ id: 'l1', name: 'Anna', weekday: 1, time: '16:00' }] });
+    st.plans.l1 = { '2026-08-24': { tasks: [], notes: '' } };
+    api.planPrune(st, 'l1', '2026-08-24');
+    expect(st.plans.l1).toBeUndefined();
+  });
+  it('keeps a plan that has tasks or notes', function () {
+    const st = api.sanitize({ version: 5, lessons: [{ id: 'l1', name: 'Anna', weekday: 1, time: '16:00' }] });
+    st.plans.l1 = {
+      '2026-08-24': { tasks: [{ id: 't1', text: 'Warm-up', done: false, subs: [] }], notes: '' },
+      '2026-08-31': { tasks: [], notes: 'Bring cards' }
+    };
+    api.planPrune(st, 'l1', '2026-08-24');
+    expect(Object.keys(st.plans.l1).sort()).toEqual(['2026-08-24', '2026-08-31']);
+  });
+  it('removes only the one date asked for', function () {
+    const st = api.sanitize({ version: 5, lessons: [{ id: 'l1', name: 'Anna', weekday: 1, time: '16:00' }] });
+    st.plans.l1 = {
+      '2026-08-24': { tasks: [], notes: 'Bring cards' },
+      '2026-08-31': { tasks: [], notes: '' }
+    };
+    api.planPrune(st, 'l1', '2026-08-31');
+    expect(Object.keys(st.plans.l1)).toEqual(['2026-08-24']);
+  });
+  it('is a no-op for unknown lessons and dates', function () {
+    const st = api.sanitize({ version: 5 });
+    api.planPrune(st, 'nope', '2026-08-24');
+    expect(st.plans).toEqual({});
+  });
+});
+
+describe('wipes', function () {
+  const seed = function () {
+    return api.sanitize({
+      version: 5,
+      timeFormat: '12',
+      settings: { sections: { goals: false } },
+      birthdays: [{ id: 'b1', name: 'Alex', month: 8, day: 8 }],
+      lessons: [{ id: 'l1', name: 'Anna', weekday: 1, time: '16:00' }],
+      habits: [{ id: 'h1', name: 'Run' }],
+      projects: [{ id: 'p1', name: 'Course', tasks: [{ id: 't1', text: 'Print handouts', done: false, imp: true, day: '2026-08-24', subs: [] }] }],
+      plans: { l1: { '2026-08-24': { tasks: [{ id: 'pt1', text: 'Warm-up', done: false, subs: [] }], notes: 'Cards' } } },
+      months: {
+        '2026-08': {
+          goals: [{ id: 'g1', text: 'Plan the month' }],
+          lessons: [{ id: 'o1', name: 'Katya', day: 19, time: '12:00' }],
+          days: { '10': [{ id: 'd1', text: 'Phone mom', done: false, imp: false, subs: [] }] },
+          habitChecks: { h1: { '10': true } }
+        }
+      }
+    });
+  };
+
+  it('counts every shelf', function () {
+    expect(api.wipeCounts(seed())).toEqual({ tasks: 1, goals: 1, projects: 1, lessons: 2, birthdays: 1, habits: 1 });
+  });
+
+  it('wipes day tasks only, leaving every other shelf intact', function () {
+    const st = seed();
+    api.wipeTasks(st);
+    expect(st.months['2026-08'].days).toEqual({});
+    expect(st.months['2026-08'].goals).toHaveLength(1);
+    expect(st.months['2026-08'].habitChecks.h1['10']).toBe(true);
+    expect(st.birthdays).toHaveLength(1);
+    expect(st.lessons).toHaveLength(1);
+    expect(st.projects).toHaveLength(1);
+  });
+
+  it('wipes goals only, and prunes a month that ends up empty', function () {
+    const st = seed();
+    st.months['2026-07'] = { goals: [{ id: 'g2', text: 'July goal' }], lessons: [], days: {} };
+    api.wipeGoals(st);
+    expect(st.months['2026-07']).toBeUndefined();
+    expect(st.months['2026-08'].goals).toEqual([]);
+    expect(st.months['2026-08'].days['10']).toHaveLength(1);
+  });
+
+  it('wipes projects with their tasks', function () {
+    const st = seed();
+    api.wipeProjects(st);
+    expect(st.projects).toEqual([]);
+    expect(st.months['2026-08'].days['10']).toHaveLength(1);
+  });
+
+  it('wipes lessons (weekly + one-offs) and their plans', function () {
+    const st = seed();
+    api.wipeLessons(st);
+    expect(st.lessons).toEqual([]);
+    expect(st.months['2026-08'].lessons).toEqual([]);
+    expect(st.plans).toEqual({});
+    expect(st.months['2026-08'].days['10']).toHaveLength(1);
+    expect(st.birthdays).toHaveLength(1);
+  });
+
+  it('wipes habits and their tick history', function () {
+    const st = seed();
+    api.wipeHabits(st);
+    expect(st.habits).toEqual([]);
+    expect(st.months['2026-08'].habitChecks).toBeUndefined();
+    expect(st.months['2026-08'].days['10']).toHaveLength(1);
+  });
+
+  it('wipes everything back to defaults, settings included', function () {
+    const out = api.wipeAll(seed());
+    expect(out.version).toBe(5);
+    expect(out.timeFormat).toBeNull();
+    expect(out.birthdays).toEqual([]);
+    expect(out.lessons).toEqual([]);
+    expect(out.projects).toEqual([]);
+    expect(out.habits).toEqual([]);
+    expect(out.plans).toEqual({});
+    expect(out.months).toEqual({});
+    expect(out.settings.sections.goals).toBe(true);
   });
 });

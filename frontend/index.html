@@ -21,7 +21,7 @@
 </head>
 <body>
   <div class="app">
-    <header class="leather-bar">
+    <header class="leather-bar" data-tauri-drag-region="deep">
       <div class="bar-group pom" id="pom">
         <button class="bar-btn pom-btn" id="pom-toggle" type="button" data-action="pom-toggle">▶</button>
         <span class="pom-time" id="pom-time">25:00</span>
@@ -33,6 +33,7 @@
       <div class="bar-group">
         <button class="bar-btn" id="btn-home" type="button" data-action="go-home">Month</button>
         <button class="bar-btn" id="btn-projects" type="button" data-action="go-page" data-page="projects">Projects</button>
+        <button class="bar-btn" id="btn-lessons" type="button" data-action="go-page" data-page="lessons">Lessons</button>
         <button class="bar-btn" type="button" data-action="go-page" data-page="settings">Settings</button>
       </div>
     </header>
@@ -41,7 +42,9 @@
     <div class="book" id="book">
       <section class="page" id="page-month" aria-label="Month spread"></section>
       <section class="page" id="page-projects" aria-label="Projects" hidden></section>
+      <section class="page" id="page-lessons" aria-label="Lessons" hidden></section>
       <section class="page" id="page-day" aria-label="Day page" hidden></section>
+      <section class="page" id="page-lesson-plan" aria-label="Lesson plan" hidden></section>
       <section class="page" id="page-settings" aria-label="Settings" hidden></section>
     </div>
   </div>

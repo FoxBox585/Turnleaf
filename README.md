@@ -10,7 +10,7 @@
 
 Paper journals pile up friction; big productivity apps are rabbit holes. Turnleaf is the middle path:
 
-- 🖥️ **A real desktop app** — its own window and Dock icon, built on Tauri 2 (a ~10 MB native shell around the same plain HTML/CSS/JS frontend)
+- 🖥️ **A real desktop app** — its own window and Dock icon, built on Tauri 2 (a ~10 MB native shell around the same plain HTML/CSS/JS frontend); the window has no title bar — the macOS traffic lights sit inside the leather bar, which doubles as the drag handle
 - 🖥️ **Also runs in a browser** — the same frontend works as a plain page for quick previews
 - 🔒 **Zero setup, zero accounts** — nothing is fetched, ever; every change auto-saves as you go
 
@@ -28,11 +28,11 @@ Paper journals pile up friction; big productivity apps are rabbit holes. Turnlea
 Files fetched with `curl` don't get the browser's quarantine flag, so Gatekeeper never bothers you:
 
 ```bash
-curl -LO https://github.com/FoxBox585/Turnleaf/releases/download/v0.7.0/Turnleaf_0.7.0_aarch64.dmg
-open Turnleaf_0.7.0_aarch64.dmg
+curl -LO https://github.com/FoxBox585/Turnleaf/releases/download/v1.0.0/Turnleaf_1.0.0_aarch64.dmg
+open Turnleaf_1.0.0_aarch64.dmg
 ```
 
-Use `Turnleaf_0.7.0_x64.dmg` on an Intel Mac. Drag Turnleaf into `/Applications` and it just opens.
+Use `Turnleaf_1.0.0_x64.dmg` on an Intel Mac. Drag Turnleaf into `/Applications` and it just opens.
 
 **Build the desktop app yourself**
 
@@ -54,7 +54,7 @@ Use `Turnleaf_0.7.0_x64.dmg` on an Intel Mac. Drag Turnleaf into `/Applications`
 
 The main page mirrors a bullet-journal month spread:
 
-- A *Dates* column (1–31), with monthly *Goals*, *Birthdays* that recur every year, and *Lessons*
+- A *Dates* column (1–31), each day labelled with its weekday (`Mon 1`), with monthly *Goals*, *Birthdays* that recur every year, and *Lessons*
 - Today is circled in ink
 - Click a date to turn the page — a real 3D page-flip — to that day's to-do list
 
@@ -69,6 +69,15 @@ Hand-drawn checkboxes, animated strikethroughs, and in-place editing on every ro
 ### 🎂 Lessons & birthdays
 
 One row adds either kind — type a weekday in the middle field (`Mon`) for a lesson that repeats every week, or a date (`19`) for a one-off that month. Times are forgiving on the way in: `4pm`, `1600` and `4:00 PM` all land the same place. Lesson times show against their dates in the *Dates* column and at the top of each day page.
+
+### 📝 Lesson planning
+
+The bar's **Lessons** button lists every weekly lesson and this month's one-offs — click a student's name and their plan page turns over. A plan is that one lesson, on that one date:
+
+- A checklist of plan items — tick, subtask, drag, delete, exactly like a project
+- A free-form *Notes* box below, for homework, materials, anything prose-shaped
+- Weekly plans open on the next upcoming lesson and the `‹ ›` arrows step a week at a time; every week's plan is kept separately, so you can look back at what you actually did
+- On a day page, the lessons line links straight to that day's plan
 
 ### 📁 Projects
 
@@ -110,6 +119,7 @@ A page of its own, from the bar:
 - **Show & hide sections** — switch off any part of the month spread you don't want (*Goals*, *Important*, *Birthdays*, *Lessons*, *Projects*, *Habits*) and it disappears, along with its marks in the *Dates* column and on day pages. Nothing is deleted; switching it back on brings it all back
 - **Clock** — `4:00 PM`, `16:00`, or follow whatever your computer does. Times are always *stored* as 24-hour, so the setting only changes how they read
 - Also holds the **timer lengths** and *About*, with the version and your backups
+- *About* also holds **Wipe data**: clear one shelf at a time — day tasks, goals, projects, lessons (with their plans), birthdays, habits (with their ticks) — or everything. Each wipe asks once, downloads a safety backup first, and leaves the rest of the book untouched
 
 ## ⌨️ Editing & shortcuts
 
@@ -125,7 +135,7 @@ Every row edits in place — click the part you want to change. On a birthday or
 
 ## 🧭 Getting around
 
-- The bar's **Projects** and **Settings** buttons open those pages; the **Month** button (and each page's ‹ back link) brings you home — back-links retrace your actual steps, so no path strands you, and nothing ever needs a page reload
+- The bar's **Projects**, **Lessons** and **Settings** buttons open those pages; the **Month** button (and each page's ‹ back link) brings you home — back-links retrace your actual steps, so no path strands you, and nothing ever needs a page reload
 - `Esc` walks back the same way
 
 ## 💾 Your data
@@ -135,14 +145,14 @@ Every row edits in place — click the part you want to change. On a birthday or
 - ⚠️ In `cargo tauri dev` the window loads the CLI's built-in dev server, a separate origin from any browser preview; the built app has its own storage again
 - 🧬 **Moving in from the old single-file build:** in the old version (browser), Export a backup, then Import it in the app — that's the one-time move
 - 🗂️ `sample-backup.json` is an example backup — import it to see a filled-in spread
-- 🧬 Backups are versioned: older `"version": 1`–`3` files still import cleanly, anything they predate coming back at its default with every section switched on. Exports are now `"version": 4`, and those will **not** open in an older build of Turnleaf
+- 🧬 Backups are versioned: older `"version": 1`–`4` files still import cleanly, anything they predate coming back at its default with every section switched on. Exports are now `"version": 5`, and those will **not** open in an older build of Turnleaf
 
 ## 🏗️ How it's built
 
 - **Frontend** — `frontend/index.html` + `styles.css` + `app.js`: the whole app in plain vanilla JS, no framework, nothing fetched, ever
 - **Shell** — `src-tauri/`: a minimal Tauri 2 project (no plugins, no custom commands) wrapping the frontend in a native macOS window; the icon set is generated from `icon.png` via `cargo tauri icon`
 - **Tests** — `npm test` (dev-only: Vitest + jsdom) exercises the pure logic — the reorder engine, parsers, and backup sanitizer — by booting the real app script in a fake DOM; GitHub Actions runs it on every push
-- **Releases** — pushing a `v*` tag (e.g. `git tag v0.7.0 && git push origin v0.7.0`) makes GitHub Actions build unsigned `.app`/`.dmg` bundles for both Mac architectures and attach them to a draft GitHub Release, ready to publish
+- **Releases** — pushing a `v*` tag (e.g. `git tag v1.0.0 && git push origin v1.0.0`) makes GitHub Actions build unsigned `.app`/`.dmg` bundles for both Mac architectures and attach them to a draft GitHub Release, ready to publish
 
 ## 📝 Notes
 

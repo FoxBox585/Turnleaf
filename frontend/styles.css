@@ -95,6 +95,15 @@ ul { list-style: none; }
    edges and the absolutely-centred title stays centred between them */
 .bar-group { position: relative; z-index: 1; display: flex; align-items: center; gap: 8px; }
 
+/* ------ borderless window (Tauri only) ------ */
+/* The desktop shell draws no title bar: the native traffic lights float over
+   the leather bar (positioned in tauri.conf.json, centred in the 52px bar),
+   and the whole bar is a drag region (data-tauri-drag-region="deep" in the
+   markup — buttons stay clickable, double-click zooms). The body gets the
+   .tauri class only inside the shell, so a browser preview is unchanged. */
+.tauri .leather-bar { padding-left: 84px; }      /* clear the lights (~x14–66) */
+.tauri .leather-bar::before { left: 78px; }      /* the stitched thread starts after them */
+
 /* ------ torn-off page scraps under the bar ------ */
 .torn-strip {
   position: absolute; top: var(--bar-h); left: 0; right: 0; height: 14px;
@@ -233,6 +242,12 @@ ul { list-style: none; }
   user-select: none; -webkit-user-select: none;
 }
 .date-row:hover, .date-row:focus-visible { background: rgba(59, 50, 38, .07); outline: none; }
+.date-wd {
+  flex: 0 0 auto;
+  min-width: 30px; text-align: right;
+  font-size: 13px; line-height: 28px;
+  color: var(--pencil);
+}
 .date-num {
   position: relative;
   min-width: 30px; text-align: right;
@@ -497,6 +512,17 @@ ul { list-style: none; }
 .back-link:hover { opacity: 1; }
 .day-title { font-size: 24px; line-height: 28px; font-weight: normal; }
 .day-bday, .day-lesson { font-size: 17px; line-height: 28px; opacity: .8; }
+/* a lesson's name as a link to its plan page: ink text that still sits on the
+   baseline grid, no moulded button chrome on the paper */
+.lesson-link {
+  background: none; border: none; padding: 0;
+  font: inherit; font-size: inherit; line-height: 28px;
+  color: inherit; cursor: pointer;
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+.lesson-link:hover { opacity: .65; }
 
 .task-list { margin-top: 28px; position: relative; } /* anchor for the drag drop line */
 .task {
@@ -712,6 +738,23 @@ body.drag-on, body.drag-on * { user-select: none; -webkit-user-select: none; cur
 .ink-btn:hover { background: rgba(59, 50, 38, .1); }
 .ink-btn:active { transform: rotate(-.6deg); }
 
+/* ------ wipe data (inside About) ------ */
+.wipe-sec { margin-top: 56px; }
+.wipe-row {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 28px;
+}
+.wipe-row .set-label { flex: 1 1 auto; min-width: 0; }
+.wipe-count {
+  flex: 0 0 auto;
+  font-size: 14px; line-height: 28px; color: var(--pencil);
+  font-variant-numeric: tabular-nums;
+}
+.wipe-btn { padding: 0 14px; }
+/* the everything-wipe is the one irreversible red button in the book */
+.wipe-everything { border-color: var(--flag); color: var(--flag); }
+.wipe-all-label { color: var(--flag); }
+
 /* ============================== 9. Projects page ======================= */
 .proj { margin-top: 56px; }
 .proj-head { display: flex; align-items: baseline; gap: 10px; min-height: 28px; }
@@ -737,7 +780,31 @@ body.drag-on, body.drag-on * { user-select: none; -webkit-user-select: none; cur
 .task-day.ghost-mark { opacity: 0; }
 .task:hover > .task-day.ghost-mark, .task-day.ghost-mark:focus-visible { opacity: 1; }
 
-/* ============================== 10. Pomodoro =========================== */
+/* ============================== 10. Lesson plans ======================= */
+/* the when · time · date line under the plan page's title; the arrows are the
+   same nav-arrow style as the month head */
+.plan-subtitle {
+  display: flex; align-items: center; gap: 12px;
+  min-height: 28px;
+  font-size: 15px; line-height: 28px; color: var(--pencil);
+}
+/* the notes box: free-writing space that stays on the 28px grid (4 rules) */
+.plan-notes-sec { margin-top: 56px; }
+.plan-notes {
+  font-family: inherit; font-size: 17px; line-height: 28px;
+  color: var(--ink); caret-color: var(--ink);
+  width: 100%; min-height: 112px;
+  padding: 6px 12px;
+  background: rgba(59, 50, 38, .03);
+  border: 2px solid var(--pencil);
+  border-radius: 10px 14px 11px 15px / 13px 10px 14px 11px; /* uneven = hand-drawn */
+  outline: none;
+  resize: vertical;
+}
+.plan-notes::placeholder { color: var(--pencil); opacity: 1; }
+.plan-notes:focus { border-color: var(--ink-strong); }
+
+/* ============================== 11. Pomodoro =========================== */
 .pom-btn { min-width: 34px; padding: 5px 9px; }
 .pom-time, .pom-mode {
   font-family: -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif;

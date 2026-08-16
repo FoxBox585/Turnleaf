@@ -3,7 +3,7 @@
 
   /* ------------------------------ constants ---------------------------- */
   var KEY = 'bujoNotes.v1';
-  var VERSION = '0.7.0';        // shown in About; the notes format is state.version
+  var VERSION = '1.0.0';        // shown in About; the notes format is state.version
   var POM_PRESETS = [[25, 5], [30, 6], [50, 10], [10, 20]];
   // side-column sections the reader can switch off. Order is display order.
   var SECTIONS = [
@@ -27,8 +27,11 @@
   var pageMonth = document.getElementById('page-month');
   var pageDay = document.getElementById('page-day');
   var pageProjects = document.getElementById('page-projects');
+  var pageLessons = document.getElementById('page-lessons');
+  var pageLessonPlan = document.getElementById('page-lesson-plan');
   var pageSettings = document.getElementById('page-settings');
   var btnProjects = document.getElementById('btn-projects');
+  var btnLessons = document.getElementById('btn-lessons');
   var btnHome = document.getElementById('btn-home');
   var importFile = document.getElementById('import-file');
   var banner = document.getElementById('banner');
@@ -38,6 +41,18 @@
 
   /* ------------------------------ helpers ------------------------------ */
   function $(sel, el) { return (el || document).querySelector(sel); }
+
+  // Scoped lookups for ids that can exist on more than one page's last render
+  // (a lesson row lives on the month spread AND the Lessons page). Only the
+  // visible page is live, so document-order lookups would land on a stale,
+  // hidden copy and edit/delete the wrong record.
+  function $v(sel) {
+    var pageEl = book.querySelector('.page:not([hidden])');
+    return pageEl ? pageEl.querySelector(sel) : null;
+  }
+  function rowById(id) {
+    return $v('[data-id="' + id + '"]');
+  }
 
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
@@ -51,6 +66,7 @@
   function pad2(n) { return String(n).padStart(2, '0'); }
   function monthKey(y, m) { return y + '-' + pad2(m); }            // m is 1-based
   function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); } // m is 1-based
+  function dateWeekday(y, m, d) { return WEEKDAY_ABBR[new Date(y, m - 1, d).getDay()]; }
   function ordinal(n) {
     var s = ['th', 'st', 'nd', 'rd'], v = n % 100;
     return n + (s[(v - 20) % 10] || s[v] || s[0]);
@@ -182,9 +198,9 @@
   var storageOk = true;
   var saveFailed = false;
   // view.page is the only thing that decides what is on screen; view.day says
-  // which day the day page shows. All of it is memory-only — a reload lands on
-  // the current month.
-  var view = { y: 0, m: 0, day: null, page: 'month' };
+  // which day the day page shows, and view.planLesson/planDate which lesson
+  // plan. All of it is memory-only — a reload lands on the current month.
+  var view = { y: 0, m: 0, day: null, page: 'month', planLesson: null, planDate: null };
   // the trail of pages behind us, so Back retraces the whole journey instead
   // of bouncing between the last two pages (Settings ⇄ Projects forever)
   var backStack = [];
@@ -203,8 +219,10 @@
   var PAGES = {
     month: { el: pageMonth, depth: 0, render: renderMonth },
     projects: { el: pageProjects, depth: 1, render: renderProjects },
+    lessons: { el: pageLessons, depth: 1, render: renderLessons },
     day: { el: pageDay, depth: 2, render: renderDay, enter: focusTaskInput },
-    settings: { el: pageSettings, depth: 3, render: renderSettings }
+    'lesson-plan': { el: pageLessonPlan, depth: 3, render: renderLessonPlan },
+    settings: { el: pageSettings, depth: 4, render: renderSettings }
   };
 
   // Repaint whichever page is showing. Editing and adding only ever happen on
@@ -224,7 +242,7 @@
   // timeFormat null = follow the computer's locale until the reader picks one
   function defaultState() {
     return {
-      version: 4,
+      version: 5,
       timeFormat: null,
       settings: {
         // every section starts on; switching one off hides it and its marks,
@@ -232,7 +250,7 @@
         sections: { goals: true, important: true, birthdays: true, lessons: true, projects: true, habits: true },
         pomodoro: { work: 25, rest: 5, chime: true }
       },
-      birthdays: [], lessons: [], projects: [], habits: [], months: {}
+      birthdays: [], lessons: [], projects: [], habits: [], plans: {}, months: {}
     };
   }
 
@@ -245,7 +263,7 @@
   // explicit `false` switches a section off: absent means on.
   function sanitize(data) {
     if (!data || typeof data !== 'object') return null;
-    if ([1, 2, 3, 4].indexOf(data.version) < 0) return null;
+    if ([1, 2, 3, 4, 5].indexOf(data.version) < 0) return null;
     var out = defaultState();
     if (data.timeFormat === '12' || data.timeFormat === '24') out.timeFormat = data.timeFormat;
     var s = data.settings;
@@ -363,6 +381,35 @@
             (mm.habitChecks && Object.keys(mm.habitChecks).length)) out.months[key] = mm;
       });
     }
+    // lesson plans (v5): per lesson id, per date — but only for lessons that
+    // actually exist above, so a file can never smuggle in orphans
+    if (data.plans && typeof data.plans === 'object') {
+      var known = {};
+      out.lessons.forEach(function (l) { known[l.id] = true; });
+      Object.keys(out.months).forEach(function (k) {
+        out.months[k].lessons.forEach(function (l) { known[l.id] = true; });
+      });
+      Object.keys(data.plans).forEach(function (lid) {
+        if (!known[lid]) return;
+        var byDate = data.plans[lid];
+        if (!byDate || typeof byDate !== 'object') return;
+        var cleaned = {};
+        Object.keys(byDate).forEach(function (iso) {
+          var plan = byDate[iso];
+          if (!cleanDay(iso) || !plan || typeof plan !== 'object') return;
+          var entry = { tasks: [], notes: typeof plan.notes === 'string' ? plan.notes : '' };
+          if (Array.isArray(plan.tasks)) {
+            plan.tasks.forEach(function (t) {
+              if (t && typeof t.text === 'string' && t.text.trim()) {
+                entry.tasks.push({ id: safeId(t.id), text: t.text, done: !!t.done, subs: subsOf(t) });
+              }
+            });
+          }
+          if (entry.tasks.length || entry.notes) cleaned[iso] = entry;
+        });
+        if (Object.keys(cleaned).length) out.plans[lid] = cleaned;
+      });
+    }
     return out;
   }
 
@@ -413,9 +460,9 @@
     var wd = new Date(y, m - 1, d).getDay();
     var out = state.lessons
       .filter(function (l) { return l.weekday === wd; })
-      .map(function (l) { return { name: l.name, time: l.time }; });
+      .map(function (l) { return { id: l.id, name: l.name, time: l.time }; });
     getMonth(y, m).lessons.forEach(function (l) {
-      if (l.day === d) out.push({ name: l.name, time: l.time });
+      if (l.day === d) out.push({ id: l.id, name: l.name, time: l.time });
     });
     return out.sort(byTime);
   }
@@ -436,6 +483,50 @@
 
   function getProject(id) {
     return state.projects.find(function (p) { return p.id === id; }) || null;
+  }
+
+  /* Lesson plans (v5): state.plans = { lessonId: { dateISO: { tasks, notes } } }.
+     A plan is planning material, not todos — its tasks never show on day pages
+     or the spread. Reads never create; empty plans are pruned away again. */
+  function getPlan(id, iso) {
+    var byLesson = state.plans[id];
+    return (byLesson && byLesson[iso]) || { tasks: [], notes: '' };
+  }
+  function ensurePlan(id, iso) {
+    var byLesson = state.plans[id] || (state.plans[id] = {});
+    if (!byLesson[iso]) byLesson[iso] = { tasks: [], notes: '' };
+    return byLesson[iso];
+  }
+  function planPrune(st, id, iso) {
+    var byLesson = st.plans[id];
+    if (!byLesson) return;
+    var plan = byLesson[iso];
+    if (plan && !plan.tasks.length && !plan.notes) delete byLesson[iso];
+    if (!Object.keys(byLesson).length) delete st.plans[id];
+  }
+
+  // A lesson lives either in the global weekly list or in one month's one-offs.
+  function findLesson(id) {
+    var l = state.lessons.find(function (x) { return x.id === id; });
+    if (l) return { lesson: l, kind: 'lesson' };
+    var keys = Object.keys(state.months);
+    for (var i = 0; i < keys.length; i++) {
+      var mo = state.months[keys[i]];
+      var lo = mo.lessons.find(function (x) { return x.id === id; });
+      if (lo) return { lesson: lo, kind: 'lesson-once', y: +keys[i].slice(0, 4), m: +keys[i].slice(5) };
+    }
+    return null;
+  }
+
+  // The plan page's date for a lesson: the next occurrence of a weekly lesson
+  // (today when today matches), or a one-off's own fixed date.
+  function planDateFor(hit) {
+    if (hit.kind === 'lesson-once') {
+      return monthKey(hit.y, hit.m) + '-' + pad2(hit.lesson.day);
+    }
+    var d = new Date();
+    d.setDate(d.getDate() + ((hit.lesson.weekday - d.getDay() + 7) % 7));
+    return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
   }
 
   // Everything due on one date, from both stores: the day's own tasks first
@@ -471,15 +562,15 @@
 
   // Resolve a task id to wherever it actually lives. Every task mutation goes
   // through this, so one set of data-actions serves the day page, the projects
-  // page and the Important list without duplicating any of them.
-  // Searching the open month plus all projects is enough: only a rendered row
-  // can be clicked, and only the open month is ever rendered.
+  // page, the plan pages and the Important list without duplicating any of them.
+  // Searching the open month, all projects and the open plan is enough: only a
+  // rendered row can be clicked, and only those are ever rendered.
   function findTask(id) {
     var lists = taskLists();
     for (var a = 0; a < lists.length; a++) {
       var i = lists[a].list.findIndex(function (t) { return t.id === id; });
       if (i > -1) {
-        return { list: lists[a].list, i: i, task: lists[a].list[i], project: lists[a].project };
+        return { list: lists[a].list, i: i, task: lists[a].list[i], project: lists[a].project, plan: lists[a].plan };
       }
     }
     return null;
@@ -491,6 +582,9 @@
     var mo = state.months[monthKey(view.y, view.m)];
     if (mo) Object.keys(mo.days).forEach(function (dk) { out.push({ list: mo.days[dk], project: null }); });
     state.projects.forEach(function (p) { out.push({ list: p.tasks, project: p }); });
+    if (view.page === 'lesson-plan' && view.planLesson && view.planDate) {
+      out.push({ list: getPlan(view.planLesson, view.planDate).tasks, project: null, plan: true });
+    }
     return out;
   }
 
@@ -500,7 +594,7 @@
       for (var b = 0; b < lists[a].list.length; b++) {
         var t = lists[a].list[b];
         var i = t.subs.findIndex(function (s) { return s.id === id; });
-        if (i > -1) return { parent: t, sub: t.subs[i], i: i };
+        if (i > -1) return { parent: t, sub: t.subs[i], i: i, plan: lists[a].plan };
       }
     }
     return null;
@@ -587,6 +681,37 @@
     if (flipping || view.page !== 'month') return;
     view.day = d;
     goPage('day');
+  }
+
+  // Open a lesson's plan page. From the Lessons index it lands on the next
+  // occurrence (weekly) or the lesson's own date (one-off); a day-page link
+  // passes that day, and when the day is itself an occurrence, the plan opens
+  // on it. The current page goes onto the trail, so Back returns to it.
+  function openPlan(id, hintDay) {
+    if (flipping) return;
+    var hit = findLesson(id);
+    if (!hit) return;
+    view.planLesson = id;
+    if (hit.kind === 'lesson-once') {
+      view.planDate = monthKey(hit.y, hit.m) + '-' + pad2(hit.lesson.day);
+    } else if (hintDay != null && new Date(view.y, view.m - 1, hintDay).getDay() === hit.lesson.weekday) {
+      view.planDate = monthKey(view.y, view.m) + '-' + pad2(hintDay);
+    } else {
+      view.planDate = planDateFor(hit);
+    }
+    goPage('lesson-plan');
+  }
+
+  // weekly plans flip a week at a time; a one-off is a single date and never
+  // steps anywhere
+  function stepPlanDate(delta) {
+    if (!view.planLesson || !view.planDate) return;
+    var hit = findLesson(view.planLesson);
+    if (!hit || hit.kind !== 'lesson') return;
+    var p = view.planDate.split('-');
+    var d = new Date(+p[0], +p[1] - 1, +p[2] + delta);
+    view.planDate = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+    renderLessonPlan();
   }
 
   function commitAddGoal(text) {
@@ -688,6 +813,16 @@
     if (inp) inp.focus();
   }
 
+  function commitAddPlanTask(text) {
+    text = text.trim();
+    if (!text || !view.planLesson || !view.planDate) return;
+    ensurePlan(view.planLesson, view.planDate).tasks.push({ id: uid(), text: text, done: false, subs: [] });
+    save();
+    renderLessonPlan();
+    var inp = book.querySelector('[data-add="plan-task"]');
+    if (inp) inp.focus();
+  }
+
   function deleteProject(id) {
     var proj = getProject(id);
     if (!proj) return;
@@ -708,7 +843,7 @@
     state.birthdays.push({ id: uid(), name: name, month: view.m, day: d });
     save();
     renderMonth();
-    var inp = $('#bday-name');
+    var inp = $v('#bday-name');
     if (inp) inp.focus();
   }
 
@@ -730,8 +865,8 @@
       ensureMonth(view.y, view.m).lessons.push({ id: uid(), name: name, day: when.day, time: time });
     }
     save();
-    renderMonth();
-    var inp = $('#lesson-name');
+    render();
+    var inp = $v('#lesson-name');
     if (inp) inp.focus();
   }
 
@@ -743,9 +878,10 @@
     renderSettings();
   }
 
-  // the only bar control that comes and goes with a section
+  // the only bar controls that come and go with a section
   function paintBar() {
     btnProjects.hidden = !secOn('projects');
+    btnLessons.hidden = !secOn('lessons');
     btnHome.hidden = view.page === 'month';
   }
 
@@ -770,7 +906,8 @@
     var hit = findTask(id);
     if (!hit) return;
     hit.list.splice(hit.i, 1);
-    if (!hit.project) prune(view.y, view.m);
+    if (hit.plan) planPrune(state, view.planLesson, view.planDate);
+    else if (!hit.project) prune(view.y, view.m);
     save();
     render();
   }
@@ -783,16 +920,18 @@
 
   function deleteLesson(id) {
     state.lessons = state.lessons.filter(function (l) { return l.id !== id; });
+    delete state.plans[id]; // the student's plans go with the lesson
     save();
-    renderMonth();
+    render();
   }
 
   function deleteLessonOnce(id) {
     var mo = ensureMonth(view.y, view.m);
     mo.lessons = mo.lessons.filter(function (l) { return l.id !== id; });
+    delete state.plans[id]; // the student's plans go with the lesson
     prune(view.y, view.m);
     save();
-    renderMonth();
+    render();
   }
 
   // toggling swaps a class in place (no re-render) so the check draw-in and
@@ -867,7 +1006,89 @@
     if (!hit) return;
     hit.parent.subs.splice(hit.i, 1);
     rollUp(hit.parent);
+    if (hit.plan) planPrune(state, view.planLesson, view.planDate);
     save();
+    render();
+  }
+
+  /* ------------------------------ wipes -------------------------------- */
+  /* Pure transforms over a state object (exported for the tests): each wipes
+     one shelf and prunes months that end up empty. The About page's buttons
+     confirm, safety-export, then apply one of these. */
+
+  function wipeCounts(st) {
+    var out = { tasks: 0, goals: 0, projects: 0, lessons: 0, birthdays: 0, habits: 0 };
+    Object.keys(st.months).forEach(function (k) {
+      var mo = st.months[k];
+      Object.keys(mo.days).forEach(function (dk) { out.tasks += mo.days[dk].length; });
+      out.goals += mo.goals.length;
+      out.lessons += mo.lessons.length;
+    });
+    out.lessons += st.lessons.length;
+    out.projects = st.projects.length;
+    out.birthdays = st.birthdays.length;
+    out.habits = st.habits.length;
+    return out;
+  }
+
+  function wipeMonthShelf(st, fn) {
+    Object.keys(st.months).forEach(function (k) {
+      var mo = st.months[k];
+      fn(mo);
+      if (!mo.goals.length && !mo.lessons.length && !Object.keys(mo.days).length &&
+          !(mo.habitChecks && Object.keys(mo.habitChecks).length)) delete st.months[k];
+    });
+    return st;
+  }
+
+  function wipeTasks(st) {
+    return wipeMonthShelf(st, function (mo) { mo.days = {}; });
+  }
+  function wipeGoals(st) {
+    return wipeMonthShelf(st, function (mo) { mo.goals = []; });
+  }
+  function wipeProjects(st) {
+    st.projects = [];
+    return st;
+  }
+  function wipeLessons(st) {
+    st.lessons = [];
+    st.plans = {}; // plans live and die with their lessons
+    return wipeMonthShelf(st, function (mo) { mo.lessons = []; });
+  }
+  function wipeBirthdays(st) {
+    st.birthdays = [];
+    return st;
+  }
+  function wipeHabits(st) {
+    st.habits = [];
+    return wipeMonthShelf(st, function (mo) { delete mo.habitChecks; });
+  }
+  function wipeAll() {
+    return defaultState(); // everything, including the settings themselves
+  }
+
+  function wipeData(kind) {
+    var counts = wipeCounts(state);
+    var labels = {
+      tasks: 'day tasks', goals: 'goals', projects: 'projects',
+      lessons: 'lessons', birthdays: 'birthdays', habits: 'habits'
+    };
+    var msg = kind === 'all'
+      ? 'Wipe EVERYTHING — all notes, and settings back to defaults?'
+      : 'Wipe all ' + counts[kind] + ' ' + labels[kind] + '?\n\nThis is permanent.';
+    if (!confirm(msg)) return;
+    exportData(); // safety copy first, exactly like Import
+    editing = null;
+    if (kind === 'all') state = wipeAll();
+    else if (kind === 'tasks') wipeTasks(state);
+    else if (kind === 'goals') wipeGoals(state);
+    else if (kind === 'projects') wipeProjects(state);
+    else if (kind === 'lessons') wipeLessons(state);
+    else if (kind === 'birthdays') wipeBirthdays(state);
+    else if (kind === 'habits') wipeHabits(state);
+    save();
+    paintBar(); // "everything" may have switched sections back on
     render();
   }
 
@@ -927,9 +1148,9 @@
     var id = row.getAttribute('data-id');
     var isHabit = row.classList.contains('habit-row');
     // an open edit commits first, and its re-render replaces this row — so
-    // everything below re-looks the row up by id
+    // everything below re-looks the row up by id, on the visible page only
     if (editing) commitEdit();
-    row = book.querySelector('[data-id="' + id + '"]');
+    row = rowById(id);
     if (!row) return;
     if (isHabit) {
       drag = {
@@ -1062,9 +1283,10 @@
     }
   }
 
-  // the row currently open for editing, whichever page it lives on
+  // the row currently open for editing, whichever page it lives on — scoped to
+  // the visible page, never a stale copy left on another page's last render
   function editRow() {
-    return editing ? book.querySelector('[data-id="' + editing.id + '"]') : null;
+    return editing ? rowById(editing.id) : null;
   }
 
   function commitEdit() {
@@ -1091,8 +1313,10 @@
     } else if (type === 'task') {
       var hit = findTask(id);
       if (hit) {
-        if (!text) hit.list.splice(hit.i, 1); // committing empty deletes
-        else {
+        if (!text) { // committing empty deletes
+          hit.list.splice(hit.i, 1);
+          if (hit.plan) planPrune(state, view.planLesson, view.planDate);
+        } else {
           hit.task.text = text;
           // only the projects page offers a day field; an unparseable one keeps
           // the old value, and an empty one clears the date
@@ -1149,7 +1373,7 @@
     var list = kind === 'lesson' ? state.lessons : mo.lessons;
     var i = list.findIndex(function (l) { return l.id === id; });
     if (i < 0) return;
-    if (!name) { list.splice(i, 1); return; }
+    if (!name) { list.splice(i, 1); delete state.plans[id]; return; }
     var l = list[i];
     l.name = name;
     var time = parseTime(vals.time);
@@ -1237,6 +1461,7 @@
         tabindex: '0',
         'aria-label': MONTH_NAMES[m - 1] + ' ' + d + (flagged ? ' — has an important item' : '')
       });
+      row.append(el('span', { class: 'date-wd', 'aria-hidden': 'true', text: dateWeekday(y, m, d) }));
       row.append(el('span', { class: 'date-num', text: d }));
       if (flagged) row.append(el('span', { class: 'date-imp', 'aria-hidden': 'true', text: '!' }));
       if (names.length) row.append(el('span', { class: 'date-bday', text: names.join(', ') }));
@@ -1523,10 +1748,16 @@
 
     var les = secOn('lessons') ? lessonsOn(y, m, day) : [];
     if (les.length) {
-      inner.append(el('p', {
-        class: 'day-lesson',
-        text: '✎ Lessons: ' + les.map(function (l) { return fmtTime(l.time) + ' ' + l.name; }).join(' · ')
-      }));
+      var lp = el('p', { class: 'day-lesson' }, '✎ Lessons: ');
+      les.forEach(function (l, i) {
+        if (i) lp.append(' · ');
+        lp.append(el('button', {
+          class: 'lesson-link', type: 'button',
+          'data-action': 'open-plan', 'data-lesson': l.id, 'data-day': day,
+          text: fmtTime(l.time) + ' ' + l.name
+        }));
+      });
+      inner.append(lp);
     }
 
     // the same ticks as the spread, reachable as bubbles — tap one and the
@@ -1621,6 +1852,111 @@
     inner.append(el('p', { class: 'set-hint', text: 'Give a task a date and it shows up on that day as well — still the same task, kept here.' }));
 
     setPage(pageProjects, inner);
+  }
+
+  // The Lessons index: every weekly lesson and this month's one-offs, like the
+  // spread's list but with clickable names — a student's name opens their plan.
+  function renderLessons() {
+    var inner = el('div', { class: 'page-inner' });
+
+    inner.append(el('div', { class: 'day-head' },
+      el('button', { class: 'back-link', type: 'button', 'data-action': 'go-back', text: backLabel() }),
+      el('h1', { class: 'day-title', text: 'Lessons' })
+    ));
+
+    var sec = el('section', { class: 'lesson-sec' });
+    sec.append(el('h2', { class: 'section-title', text: 'Weekly' }));
+    var ll = el('ul', { class: 'lesson-list' });
+    var weekly = state.lessons.slice().sort(function (a, b) {
+      return (weekRank(a.weekday) - weekRank(b.weekday)) || byTime(a, b);
+    });
+    weekly.forEach(function (l) { ll.append(lessonRow(l, 'lesson', { openPlan: true })); });
+
+    var mo = getMonth(view.y, view.m);
+    var once = mo.lessons.slice().sort(function (a, b) {
+      return (a.day - b.day) || byTime(a, b);
+    });
+    if (once.length) {
+      if (weekly.length) ll.append(el('li', { class: 'lesson-divider', 'aria-hidden': 'true' }));
+      once.forEach(function (l) { ll.append(lessonRow(l, 'lesson-once', { openPlan: true })); });
+    }
+    sec.append(ll);
+    sec.append(el('div', { class: 'lesson-add' },
+      el('input', { class: 'ghost-input', type: 'text', id: 'lesson-name', placeholder: 'Student' }),
+      el('input', { class: 'ghost-input lesson-when-input', type: 'text', id: 'lesson-when', placeholder: 'Mon or 3' }),
+      el('input', { class: 'ghost-input lesson-time-input', type: 'text', id: 'lesson-time', placeholder: fmtTime('16:00') })
+    ));
+    sec.append(el('p', { class: 'lesson-hint',
+      text: 'Click a student to open their lesson plan. A weekday repeats every week; a date is a one-off in ' + MONTH_NAMES[view.m - 1] + '.' }));
+    inner.append(sec);
+
+    setPage(pageLessons, inner);
+  }
+
+  // One lesson's plan for one date: an activity checklist (project-style task
+  // rows, minus the Important flag) and a free-text notes box. Weekly lessons
+  // step a week at a time and keep every week's plan; one-offs have one date.
+  function renderLessonPlan() {
+    var hit = findLesson(view.planLesson);
+    if (!hit) { // the lesson was deleted or replaced under us — land on the index
+      view.planLesson = null;
+      view.planDate = null;
+      showPageNow('lessons');
+      renderLessons();
+      return;
+    }
+    var inner = el('div', { class: 'page-inner' });
+    var weekly = hit.kind === 'lesson';
+    var p = view.planDate.split('-');
+    var pd = new Date(+p[0], +p[1] - 1, +p[2]);
+
+    // the schedule on the left (when it happens), the concrete date on the
+    // right; a weekly plan steps a week at a time, a one-off is its own date
+    var sub = el('p', { class: 'plan-subtitle' });
+    if (weekly) {
+      sub.append(el('button', { class: 'nav-arrow', type: 'button', 'data-action': 'plan-prev', 'aria-label': 'Previous lesson', text: '‹' }));
+      sub.append(el('span', {
+        text: WEEKDAY_ABBR[hit.lesson.weekday] + ' · ' + fmtTime(hit.lesson.time) + ' · ' +
+          MONTH_NAMES[pd.getMonth()] + ' ' + ordinal(pd.getDate())
+      }));
+      sub.append(el('button', { class: 'nav-arrow', type: 'button', 'data-action': 'plan-next', 'aria-label': 'Next lesson', text: '›' }));
+    } else {
+      sub.append(el('span', {
+        text: MONTH_NAMES[hit.m - 1] + ' ' + ordinal(hit.lesson.day) + ' · ' + fmtTime(hit.lesson.time)
+      }));
+    }
+
+    inner.append(el('div', { class: 'day-head' },
+      el('button', { class: 'back-link', type: 'button', 'data-action': 'go-back', text: backLabel() }),
+      el('h1', { class: 'day-title', text: hit.lesson.name })
+    ), sub);
+
+    var plan = getPlan(view.planLesson, view.planDate);
+    var list = el('ul', { class: 'task-list' });
+    plan.tasks.forEach(function (t) { appendTask(list, t, { plan: true }); });
+    inner.append(list);
+
+    inner.append(el('div', { class: 'task-add' },
+      el('span', { class: 'checkbox ghost', 'aria-hidden': 'true' }),
+      el('input', {
+        class: 'ghost-input', type: 'text', 'data-add': 'plan-task',
+        'aria-label': 'Add a plan item',
+        placeholder: plan.tasks.length ? 'Add a plan item…' : 'Plan this lesson — add an item…'
+      })
+    ));
+
+    inner.append(el('section', { class: 'set-sec plan-notes-sec' },
+      el('h2', { class: 'section-title', text: 'Notes' }),
+      el('textarea', {
+        class: 'plan-notes', id: 'plan-notes', rows: '4',
+        'aria-label': 'Lesson notes',
+        placeholder: 'Homework, materials, things to watch…'
+      })
+    ));
+
+    setPage(pageLessonPlan, inner);
+    var ta = $('#plan-notes');
+    if (ta) ta.value = plan.notes;
   }
 
   // parents only: a count is about the things you listed, not their innards
@@ -1726,6 +2062,34 @@
     ));
     about.append(el('p', { class: 'about-line dim', text: 'Your notes live in this browser and nowhere else. Importing replaces everything, so it downloads a safety copy first.' }));
     about.append(el('p', { class: 'about-line dim', text: 'Backups written by this version will not open in older builds of Turnleaf.' }));
+
+    /* wiping one shelf at a time — every wipe confirms, safety-exports, and
+       leaves the rest of the book untouched */
+    var counts = wipeCounts(state);
+    var wipeKinds = [
+      ['tasks', 'Day tasks', counts.tasks],
+      ['goals', 'Goals', counts.goals],
+      ['projects', 'Projects (with their tasks)', counts.projects],
+      ['lessons', 'Lessons (with their plans)', counts.lessons],
+      ['birthdays', 'Birthdays', counts.birthdays],
+      ['habits', 'Habits (with tick history)', counts.habits]
+    ];
+    var wipeSec = el('section', { class: 'set-sec wipe-sec' });
+    wipeSec.append(el('h2', { class: 'section-title', text: 'Wipe data' }));
+    wipeKinds.forEach(function (w) {
+      wipeSec.append(el('div', { class: 'wipe-row' },
+        el('span', { class: 'set-label', text: w[1] }),
+        el('span', { class: 'wipe-count', text: w[2] }),
+        el('button', { class: 'ink-btn wipe-btn', type: 'button', 'data-action': 'wipe-' + w[0], text: 'Wipe…' })
+      ));
+    });
+    wipeSec.append(el('div', { class: 'wipe-row' },
+      el('span', { class: 'set-label wipe-all-label', text: 'Everything' }),
+      el('button', { class: 'ink-btn wipe-btn wipe-everything', type: 'button', 'data-action': 'wipe-all', text: 'Wipe all' })
+    ));
+    wipeSec.append(el('p', { class: 'set-hint', text: 'Wiping is permanent — each wipe downloads a safety backup first, and only that shelf is cleared.' }));
+    inner.append(wipeSec);
+
     if (!storageOk || saveFailed) {
       about.append(el('p', { class: 'about-line warn', text: 'Storage is unavailable right now — export often.' }));
     }
@@ -1743,6 +2107,8 @@
     }
     if (top === 'month') return '‹ ' + MONTH_NAMES[view.m - 1];
     if (top === 'projects') return '‹ Projects';
+    if (top === 'lessons') return '‹ Lessons';
+    if (top === 'lesson-plan') return '‹ Plan';
     if (top === 'settings') return '‹ Settings';
     return '‹ Back';
   }
@@ -1755,7 +2121,9 @@
 
   // One row shape for both kinds of lesson — they differ only in what "when"
   // means (a weekday vs a date), and editing that field converts between them.
-  function lessonRow(l, kind) {
+  // opts.openPlan (the Lessons page) makes the name open the plan page instead
+  // of editing — planning is the point of that page.
+  function lessonRow(l, kind, opts) {
     var li = el('li', { class: 'item', 'data-id': l.id });
     var when = kind === 'lesson' ? WEEKDAY_ABBR[l.weekday] : ordinal(l.day);
     if (editing && editing.type === kind && editing.id === l.id) {
@@ -1771,7 +2139,13 @@
         ' ',
         el('span', { class: 'seg', 'data-action': 'edit-' + kind, 'data-field': 'time', text: fmtTime(l.time) }),
         ' – ',
-        el('span', { class: 'seg', 'data-action': 'edit-' + kind, 'data-field': 'name', text: l.name })
+        (opts && opts.openPlan)
+          ? el('button', {
+            class: 'lesson-link', type: 'button',
+            'data-action': 'open-plan', 'data-lesson': l.id,
+            'aria-label': 'Plan a lesson with ' + l.name, text: l.name
+          })
+          : el('span', { class: 'seg', 'data-action': 'edit-' + kind, 'data-field': 'name', text: l.name })
       ));
     }
     li.append(el('button', {
@@ -1784,7 +2158,8 @@
 
   // ctx.project — this row is a project's task showing on a day page, so it
   //   carries the project's name; ctx.showDay — it is on the projects page, so
-  //   its optional date is shown and editable.
+  //   its optional date is shown and editable; ctx.plan — it is a lesson-plan
+  //   item: planning material, not a todo, so there is no Important flag.
   function taskRow(t, ctx) {
     ctx = ctx || {};
     var li = el('li', {
@@ -1826,10 +2201,12 @@
         }));
       }
     }
-    li.append(el('button', {
-      class: 'flag', type: 'button', 'data-action': 'toggle-imp',
-      'aria-label': 'Show on the month spread', 'aria-pressed': String(!!t.imp), text: '!'
-    }));
+    if (!ctx.plan) {
+      li.append(el('button', {
+        class: 'flag', type: 'button', 'data-action': 'toggle-imp',
+        'aria-label': 'Show on the month spread', 'aria-pressed': String(!!t.imp), text: '!'
+      }));
+    }
     li.append(el('button', {
       class: 'addsub', type: 'button', 'data-action': 'add-sub',
       'aria-label': 'Add a subtask to ' + t.text, text: '+'
@@ -1949,7 +2326,7 @@
   }
 
   function focusTaskInput() {
-    var inp = $('#task-input');
+    var inp = $v('#task-input');
     if (inp) inp.focus({ preventScroll: true });
   }
 
@@ -2152,6 +2529,12 @@
       case 'prev-month': gotoMonth(-1); break;
       case 'next-month': gotoMonth(1); break;
       case 'open-day': openDay(+target.getAttribute('data-day')); break;
+      case 'open-plan':
+        openPlan(target.getAttribute('data-lesson'),
+          target.getAttribute('data-day') != null ? +target.getAttribute('data-day') : null);
+        break;
+      case 'plan-prev': stepPlanDate(-7); break;
+      case 'plan-next': stepPlanDate(7); break;
       case 'go-page': goPage(target.getAttribute('data-page')); break;
       case 'go-back': goBack(); break;
       case 'toggle-task': toggleTask(id, itemEl); break;
@@ -2188,6 +2571,13 @@
         setPomPreset(+target.getAttribute('data-work'), +target.getAttribute('data-rest'));
         break;
       case 'toggle-chime': toggleChime(); break;
+      case 'wipe-tasks': wipeData('tasks'); break;
+      case 'wipe-goals': wipeData('goals'); break;
+      case 'wipe-projects': wipeData('projects'); break;
+      case 'wipe-lessons': wipeData('lessons'); break;
+      case 'wipe-birthdays': wipeData('birthdays'); break;
+      case 'wipe-habits': wipeData('habits'); break;
+      case 'wipe-all': wipeData('all'); break;
     }
   });
 
@@ -2231,10 +2621,13 @@
         var owner = t.closest('[data-project]');
         if (owner) commitAddProjectTask(owner.getAttribute('data-project'), t.value);
       } else if (e.key === 'Escape') { t.value = ''; t.blur(); }
+    } else if (t.getAttribute && t.getAttribute('data-add') === 'plan-task') {
+      if (e.key === 'Enter') commitAddPlanTask(t.value);
+      else if (e.key === 'Escape') { t.value = ''; t.blur(); }
     } else if (t.id === 'bday-name' || t.id === 'bday-day') {
       if (e.key === 'Enter') commitAddBirthday();
       else if (e.key === 'Escape') {
-        var n = $('#bday-name'), d = $('#bday-day');
+        var n = $v('#bday-name'), d = $v('#bday-day');
         if (n) n.value = '';
         if (d) d.value = '';
         t.blur();
@@ -2242,8 +2635,10 @@
     } else if (t.id === 'lesson-name' || t.id === 'lesson-when' || t.id === 'lesson-time') {
       if (e.key === 'Enter') commitAddLesson();
       else if (e.key === 'Escape') {
+        // the lesson add row exists on the month spread and the Lessons page —
+        // clear the copy on the visible page, not a stale one
         ['#lesson-name', '#lesson-when', '#lesson-time'].forEach(function (sel) {
-          var n = $(sel);
+          var n = $v(sel);
           if (n) n.value = '';
         });
         t.blur();
@@ -2296,6 +2691,15 @@
     commitEdit();
   });
 
+  // the lesson-plan notes box saves as you type — it is a plain shelf, not a
+  // record with rows, so it needs no Enter/Escape or focus bookkeeping
+  book.addEventListener('input', function (e) {
+    if (e.target.id !== 'plan-notes' || !view.planLesson || !view.planDate) return;
+    ensurePlan(view.planLesson, view.planDate).notes = e.target.value;
+    planPrune(state, view.planLesson, view.planDate);
+    save();
+  });
+
   document.addEventListener('keydown', function (e) {
     // Escape during a drag abandons the gesture — and must not also turn the
     // page back, so a drag owns the key first
@@ -2319,6 +2723,11 @@
 
   /* ------------------------------ init ---------------------------------- */
   if (location.hash === '#grid') document.querySelector('.app').classList.add('show-grid');
+  // Inside the Tauri shell the window has no title bar: the native traffic
+  // lights float over the leather bar, and the CSS gives them room. Tauri
+  // defines window.isTauri in an init script before ours runs; a browser
+  // never has it, so the preview keeps its old layout.
+  if (window.isTauri) document.body.classList.add('tauri');
   state = load();
   var t = new Date();
   view.y = t.getFullYear();
@@ -2339,7 +2748,17 @@
       parseTime: parseTime,
       cleanDay: cleanDay,
       daysInMonth: daysInMonth,
+      dateWeekday: dateWeekday,
       sanitize: sanitize,
+      planPrune: planPrune,
+      wipeCounts: wipeCounts,
+      wipeTasks: wipeTasks,
+      wipeGoals: wipeGoals,
+      wipeProjects: wipeProjects,
+      wipeLessons: wipeLessons,
+      wipeBirthdays: wipeBirthdays,
+      wipeHabits: wipeHabits,
+      wipeAll: wipeAll,
       goPage: goPage,
       goBack: goBack,
       goHome: goHome,

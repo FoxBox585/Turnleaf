@@ -1,5 +1,5 @@
 {
-  "version": 4,
+  "version": 5,
   "birthdays": [
     { "id": "sample-b1", "name": "Alex", "month": 8, "day": 8 },
     { "id": "sample-b2", "name": "Sam", "month": 8, "day": 23 }
@@ -13,6 +13,18 @@
     { "id": "sample-h1", "name": "Morning run" },
     { "id": "sample-h2", "name": "Read 10 pages" }
   ],
+  "plans": {
+    "sample-l1": {
+      "2026-08-17": {
+        "tasks": [
+          { "id": "sample-p1", "text": "Warm-up: greetings and last week's homework", "done": false },
+          { "id": "sample-p2", "text": "The [ø] sound — reading drill", "done": false },
+          { "id": "sample-p3", "text": "Dialogue practice from page 54", "done": false }
+        ],
+        "notes": "Homework: five sentences with the new words. Bring the audio track."
+      }
+    }
+  },
   "months": {
     "2026-08": {
       "goals": [
