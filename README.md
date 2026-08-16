@@ -58,13 +58,13 @@ The main page mirrors a bullet-journal month spread:
 - Today is circled in ink
 - Click a date to turn the page — a real 3D page-flip — to that day's to-do list
 
-<p align="center"><img src="screenshot-month.png" width="820" alt="The month spread: a Dates column down the left, with Goals, Important, Projects, Birthdays and Lessons stacked on the right"></p>
+<p align="center"><img src="screenshot-month.png" width="820" alt="The month spread: a Dates column down the left, each day labelled with its weekday, with Goals, Important, Projects, Birthdays and Lessons stacked on the right, and the Habits tick table underneath"></p>
 
 ### 📄 Day pages
 
-Hand-drawn checkboxes, animated strikethroughs, and in-place editing on every row.
+Hand-drawn checkboxes, animated strikethroughs, and in-place editing on every row. The day's lessons (clickable through to their plans) and habits sit at the top.
 
-<p align="center"><img src="screenshot-day.png" width="820" alt="A day page: tasks with hand-drawn checkboxes, one carrying two subtasks and a 1/2 counter, another flagged important"></p>
+<p align="center"><img src="screenshot-day.png" width="820" alt="A day page: tasks with hand-drawn checkboxes, subtasks with a 1/2 counter, a flagged task, and the day's lessons and habits as bubbles at the top"></p>
 
 ### 🎂 Lessons & birthdays
 
@@ -79,6 +79,10 @@ The bar's **Lessons** button lists every weekly lesson and this month's one-offs
 - Weekly plans open on the next upcoming lesson and the `‹ ›` arrows step a week at a time; every week's plan is kept separately, so you can look back at what you actually did
 - On a day page, the lessons line links straight to that day's plan
 
+<p align="center"><img src="screenshot-lessons.png" width="820" alt="The Lessons page: the weekly timetable with clickable student names, this month's one-offs below, and an add row"></p>
+
+<p align="center"><img src="screenshot-plan.png" width="820" alt="A lesson plan page: the plan checklist with ticked items, the ‹ › week arrows, and the Notes box with homework"></p>
+
 ### 📁 Projects
 
 Folders of tasks that outlive any one month, on their own page:
@@ -87,7 +91,7 @@ Folders of tasks that outlive any one month, on their own page:
 - A dated task also appears on that day's page and on the spread, labelled with its project
 - It is still the one task: tick it on the day and the project agrees
 
-<p align="center"><img src="screenshot-projects.png" width="820" alt="The projects page: two projects with done counters, one task dated the 15th and flagged important, with two subtasks indented beneath it"></p>
+<p align="center"><img src="screenshot-projects.png" width="820" alt="The projects page: two projects with done counters, one task dated the 17th and flagged important, with a subtask indented beneath it"></p>
 
 ### ☑️ Subtasks
 
@@ -120,6 +124,8 @@ A page of its own, from the bar:
 - **Clock** — `4:00 PM`, `16:00`, or follow whatever your computer does. Times are always *stored* as 24-hour, so the setting only changes how they read
 - Also holds the **timer lengths** and *About*, with the version and your backups
 - *About* also holds **Wipe data**: clear one shelf at a time — day tasks, goals, projects, lessons (with their plans), birthdays, habits (with their ticks) — or everything. Each wipe asks once, downloads a safety backup first, and leaves the rest of the book untouched
+
+<p align="center"><img src="screenshot-settings.png" width="820" alt="Settings, scrolled to About: the version, the Export and Import backups, and the Wipe data rows with per-section counts"></p>
 
 ## ⌨️ Editing & shortcuts
 
